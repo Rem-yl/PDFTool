@@ -15,7 +15,7 @@ from ..core.models import SplitOptions, MergeOptions, SplitMode
 from ..core.exceptions import PDFToolError
 from ..config.settings import settings
 from ..utils.logging import setup_logging, get_logger
-from .templates import get_html_template
+from .templates import get_main_menu_template, get_merge_template, get_split_template, get_info_template
 
 # Setup logging
 setup_logging()
@@ -44,8 +44,26 @@ pdf_ops = PDFOperations(temp_dir=settings.temp_dir)
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    """返回主页面"""
-    return get_html_template()
+    """返回功能选择主页面"""
+    return get_main_menu_template()
+
+
+@app.get("/merge", response_class=HTMLResponse)
+async def merge_page():
+    """返回PDF合并页面"""
+    return get_merge_template()
+
+
+@app.get("/split", response_class=HTMLResponse)
+async def split_page():
+    """返回PDF拆分页面"""
+    return get_split_template()
+
+
+@app.get("/info", response_class=HTMLResponse)
+async def info_page():
+    """返回PDF信息页面"""
+    return get_info_template()
 
 
 @app.get("/health")
