@@ -21,7 +21,7 @@ setup(
     description="A comprehensive PDF manipulation tool with GUI and API interfaces",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/pdftool/pdftool",
+    url="https://github.com/Rem-yl/PDFTool",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     classifiers=[

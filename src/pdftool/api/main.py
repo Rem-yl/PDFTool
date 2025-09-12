@@ -204,7 +204,8 @@ async def get_pdf_info(file: UploadFile = File(...)):
             pdf_ops.cleanup_temp_files([temp_file])
 
 
-if __name__ == "__main__":
+def main():
+    """Main entry point for the PDFTool API server"""
     import uvicorn
     uvicorn.run(
         "pdftool.api.main:app",
@@ -213,3 +214,7 @@ if __name__ == "__main__":
         reload=settings.debug,
         workers=settings.api_workers
     )
+
+
+if __name__ == "__main__":
+    main()
