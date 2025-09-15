@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}PDF信息 - PDFTool{% endblock %}
+
+{% block header_icon %}ℹ️{% endblock %}
+{% block header_title %}PDF信息{% endblock %}
+{% block header_description %}查看PDF文件的详细信息和属性{% endblock %}
+
+{% set show_back_button = true %}
+
+{% block content %}
+<div class="upload-area" id="infoDropZone">
+    <h3>选择要查看信息的PDF文件</h3>
+    <input type="file" id="infoFile" accept=".pdf">
+    <br>
+    <button onclick="getPDFInfo()">获取文件信息</button>
+</div>
+<div class="progress-bar" id="infoProgress">
+    <div class="progress-fill"></div>
+</div>
+<div id="infoResult"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', path='/js/upload.js') }}"></script>
+<script>
+    // 设置拖放区域
+    setupDropZone('infoDropZone', 'infoFile');
+
+    async function getPDFInfo() {
+        const file = document.getElementById('infoFile').files[0];
+        if (!file) {
+            showResult('infoResult', '请选择PDF文件', false);
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        showProgress('infoProgress');
+
+        try {
+            const response = await fetch('/api/v1/pdf/info', {
+                method: 'POST',
+                body: formData
+            });
+            
+            hideProgress('infoProgress');
+            
+            if (response.ok) {
+                const info = await response.json();
+                const sizeInMB = (info.file_size / 1024 / 1024).toFixed(2);
+                showResult('infoResult', `
+                    <strong>📋 PDF文件信息:</strong><br><br>
+                    📄 <strong>页数:</strong> ${info.pages}<br>
+                    📝 <strong>标题:</strong> ${info.title || '无'}<br>
+                    👤 <strong>作者:</strong> ${info.author || '无'}<br>
+                    📅 <strong>创建时间:</strong> ${info.creation_date || '无'}<br>
+                    💾 <strong>文件大小:</strong> ${sizeInMB} MB
+                `, true);
+            } else {
+                const error = await response.json();
+                showResult('infoResult', `❌ 错误: ${error.message}`, false);
+            }
+        } catch (error) {
+            hideProgress('infoProgress');
+            showResult('infoResult', `❌ 请求失败: ${error.message}`, false);
+        }
+    }
+</script>
+{% endblock %}

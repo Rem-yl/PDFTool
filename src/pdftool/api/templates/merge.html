@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}PDF合并 - PDFTool{% endblock %}
+
+{% block header_icon %}📄{% endblock %}
+{% block header_title %}PDF合并{% endblock %}
+{% block header_description %}将多个PDF文件合并为一个文件{% endblock %}
+
+{% set show_back_button = true %}
+
+{% block content %}
+<div class="upload-area" id="mergeDropZone">
+    <h3>选择要合并的PDF文件</h3>
+    <p>请选择至少2个PDF文件进行合并</p>
+    <input type="file" id="mergeFiles" multiple accept=".pdf">
+    <br>
+    <div class="options-group">
+        <label>
+            <input type="checkbox" id="preserveBookmarks" checked> 保留书签
+        </label>
+        <label>
+            <input type="checkbox" id="preserveMetadata" checked> 保留元数据
+        </label>
+    </div>
+    <button onclick="mergePDFs()">开始合并</button>
+</div>
+<div class="progress-bar" id="mergeProgress">
+    <div class="progress-fill"></div>
+</div>
+<div id="mergeResult"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', path='/js/upload.js') }}"></script>
+<script>
+    // 设置拖放区域
+    setupDropZone('mergeDropZone', 'mergeFiles');
+
+    async function mergePDFs() {
+        const files = document.getElementById('mergeFiles').files;
+        if (files.length < 2) {
+            showResult('mergeResult', '请选择至少2个PDF文件', false);
+            return;
+        }
+
+        const formData = new FormData();
+        for (let file of files) {
+            formData.append('files', file);
+        }
+        
+        // 添加选项
+        formData.append('preserve_bookmarks', document.getElementById('preserveBookmarks').checked);
+        formData.append('preserve_metadata', document.getElementById('preserveMetadata').checked);
+
+        showProgress('mergeProgress');
+        
+        try {
+            const response = await fetch('/api/v1/pdf/merge', {
+                method: 'POST',
+                body: formData
+            });
+            
+            hideProgress('mergeProgress');
+            
+            if (response.ok) {
+                const blob = await response.blob();
+                downloadFile(blob, 'merged.pdf');
+                showResult('mergeResult', `✅ PDF合并成功！已合并 ${files.length} 个文件`, true);
+            } else {
+                const error = await response.json();
+                showResult('mergeResult', `❌ 错误: ${error.message}`, false);
+            }
+        } catch (error) {
+            hideProgress('mergeProgress');
+            showResult('mergeResult', `❌ 请求失败: ${error.message}`, false);
+        }
+    }
+</script>
+{% endblock %}

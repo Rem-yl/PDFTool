@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}PDF拆分 - PDFTool{% endblock %}
+
+{% block header_icon %}✂️{% endblock %}
+{% block header_title %}PDF拆分{% endblock %}
+{% block header_description %}将PDF文件拆分成多个页面或指定范围{% endblock %}
+
+{% set show_back_button = true %}
+
+{% block content %}
+<div class="upload-area" id="splitDropZone">
+    <h3>选择要拆分的PDF文件</h3>
+    <input type="file" id="splitFile" accept=".pdf">
+    
+    <div class="options-group">
+        <h4>拆分选项：</h4>
+        <label>
+            <input type="radio" name="splitMode" value="all" checked> 每页单独拆分
+        </label>
+        <label>
+            <input type="radio" name="splitMode" value="range"> 指定页面范围
+        </label>
+        <div class="range-inputs" id="rangeInputs">
+            起始页: <input type="number" id="startPage" value="1" min="1">
+            结束页: <input type="number" id="endPage" min="1" placeholder="可选">
+        </div>
+    </div>
+    <button onclick="splitPDF()">开始拆分</button>
+</div>
+<div class="progress-bar" id="splitProgress">
+    <div class="progress-fill"></div>
+</div>
+<div id="splitResult"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', path='/js/upload.js') }}"></script>
+<script>
+    // 设置拖放区域
+    setupDropZone('splitDropZone', 'splitFile');
+
+    // 切换范围输入
+    document.querySelectorAll('input[name="splitMode"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const rangeInputs = document.getElementById('rangeInputs');
+            if (this.value === 'range') {
+                rangeInputs.classList.add('show');
+            } else {
+                rangeInputs.classList.remove('show');
+            }
+        });
+    });
+
+    async function splitPDF() {
+        const file = document.getElementById('splitFile').files[0];
+        if (!file) {
+            showResult('splitResult', '请选择PDF文件', false);
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const mode = document.querySelector('input[name="splitMode"]:checked').value;
+        formData.append('mode', mode);
+        
+        if (mode === 'range') {
+            const startPage = document.getElementById('startPage').value;
+            const endPage = document.getElementById('endPage').value;
+            formData.append('start_page', startPage);
+            if (endPage) formData.append('end_page', endPage);
+        }
+
+        showProgress('splitProgress');
+
+        try {
+            const response = await fetch('/api/v1/pdf/split', {
+                method: 'POST',
+                body: formData
+            });
+            
+            hideProgress('splitProgress');
+            
+            if (response.ok) {
+                const blob = await response.blob();
+                const filename = mode === 'all' ? 'split_pages.zip' : 'split_range.pdf';
+                downloadFile(blob, filename);
+                showResult('splitResult', '✅ PDF拆分成功！文件已下载', true);
+            } else {
+                const error = await response.json();
+                showResult('splitResult', `❌ 错误: ${error.message}`, false);
+            }
+        } catch (error) {
+            hideProgress('splitProgress');
+            showResult('splitResult', `❌ 请求失败: ${error.message}`, false);
+        }
+    }
+</script>
+{% endblock %}

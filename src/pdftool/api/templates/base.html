@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PDFTool - PDF操作工具{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/main.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            {% if show_back_button %}
+            <button class="back-button" onclick="goHome()">← 返回</button>
+            {% endif %}
+            <h1>{% block header_icon %}📄{% endblock %} {% block header_title %}PDFTool{% endblock %}</h1>
+            <p>{% block header_description %}专业的PDF操作工具 - 合并、拆分、信息提取{% endblock %}</p>
+        </div>
+        
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', path='/js/common.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

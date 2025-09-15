@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}PDFTool - 功能选择{% endblock %}
+
+{% block content %}
+<div class="function-selection">
+    <h2>🎯 选择PDF操作功能</h2>
+    <p class="subtitle">请选择您要使用的PDF处理功能</p>
+    
+    <div class="function-cards">
+        <div class="function-card" onclick="goToFunction('merge')">
+            <div class="card-icon">📄</div>
+            <div class="card-title">PDF合并</div>
+            <div class="card-description">将多个PDF文件合并为一个文件</div>
+            <div class="card-button">开始合并</div>
+        </div>
+        
+        <div class="function-card" onclick="goToFunction('split')">
+            <div class="card-icon">✂️</div>
+            <div class="card-title">PDF拆分</div>
+            <div class="card-description">将PDF文件拆分成多个页面或指定范围</div>
+            <div class="card-button">开始拆分</div>
+        </div>
+        
+        <div class="function-card" onclick="goToFunction('info')">
+            <div class="card-icon">ℹ️</div>
+            <div class="card-title">PDF信息</div>
+            <div class="card-description">查看PDF文件的详细信息和属性</div>
+            <div class="card-button">查看信息</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function goToFunction(functionName) {
+        window.location.href = `/${functionName}`;
+    }
+</script>
+{% endblock %}
