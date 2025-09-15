@@ -31,10 +31,15 @@
             <strong>合并选择</strong> - 将指定页面合并为单个文件
         </label>
         
+        <!-- 全部页面警告 -->
+        <div class="warning-message" id="allPagesWarning">
+            <p class="warning-text">⚠️ <strong>注意：</strong>选择"全部页面"将把PDF的每一页都保存为单独的文件，对于页面较多的PDF文件，此操作可能比较耗时。</p>
+        </div>
+
         <!-- 指定页面输入 -->
         <div class="pages-inputs" id="pagesInputs">
             <label>
-                页面列表: 
+                页面列表:
                 <input type="text" id="pagesInput" placeholder="例如: 1,3,5 或 1-5 或 1,3-5,8">
             </label>
             <p class="help-text">支持格式：单页 "3"，多页 "1,3,5"，范围 "1-5" 或混合 "1,3-5,8"</p>
@@ -69,15 +74,27 @@
     document.querySelectorAll('input[name="pageMode"]').forEach(radio => {
         radio.addEventListener('change', function() {
             const pagesInputs = document.getElementById('pagesInputs');
-            
-            // 隐藏输入区域
+            const allPagesWarning = document.getElementById('allPagesWarning');
+
+            // 隐藏所有区域
             pagesInputs.classList.remove('show');
-            
-            // 根据选择显示对应输入区域
-            if (this.value === 'pages' || this.value === 'single') {
+            allPagesWarning.classList.remove('show');
+
+            // 根据选择显示对应区域
+            if (this.value === 'all') {
+                allPagesWarning.classList.add('show');
+            } else if (this.value === 'pages' || this.value === 'single') {
                 pagesInputs.classList.add('show');
             }
         });
+    });
+
+    // 初始化显示状态
+    document.addEventListener('DOMContentLoaded', function() {
+        const checkedRadio = document.querySelector('input[name="pageMode"]:checked');
+        if (checkedRadio && checkedRadio.value === 'all') {
+            document.getElementById('allPagesWarning').classList.add('show');
+        }
     });
 
     // 页面输入验证

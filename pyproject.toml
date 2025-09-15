@@ -45,6 +45,7 @@ api = [
 
 [project.scripts]
 pdftool-gui = "pdftool.gui.main:main"
+pdftool = "pdftool.api.main:main"
 pdftool-api = "pdftool.api.main:main"
 
 [project.urls]

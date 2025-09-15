@@ -55,7 +55,7 @@ setup(
     entry_points={
         "console_scripts": [
             "pdftool-gui=pdftool.gui.main:main",
-            "pdftool-api=pdftool.api.main:main",
+            "pdftool=pdftool.api.main:main",
         ],
     },
     include_package_data=True,

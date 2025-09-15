@@ -249,7 +249,8 @@ button:disabled {
     font-size: 1.1em;
 }
 
-.range-inputs {
+.range-inputs,
+.pages-inputs {
     margin-top: 15px;
     padding: 15px;
     background: #f8f9fa;
@@ -257,8 +258,36 @@ button:disabled {
     display: none;
 }
 
-.range-inputs.show {
+.range-inputs.show,
+.pages-inputs.show {
     display: block;
+}
+
+.warning-message {
+    margin-top: 15px;
+    padding: 15px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 5px;
+    display: none;
+}
+
+.warning-message.show {
+    display: block;
+}
+
+.warning-text {
+    color: #856404;
+    margin: 0;
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+
+.help-text {
+    color: #6c757d;
+    font-size: 0.85em;
+    margin-top: 5px;
+    font-style: italic;
 }
 
 /* 进度条样式 */
