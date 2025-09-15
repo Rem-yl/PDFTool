@@ -89,33 +89,7 @@ make docker-run
 访问 `http://localhost:8000/docs` 查看 Swagger 文档
 
 ## 🏗️ 项目架构
-
-```
-pdftool/
-├── src/pdftool/           # 源代码包
-│   ├── core/              # 核心业务逻辑
-│   │   ├── pdf_operations.py    # PDF 操作实现
-│   │   ├── models.py            # 数据模型
-│   │   └── exceptions.py        # 异常定义
-│   ├── api/               # FastAPI Web 接口
-│   │   ├── main.py              # API 主程序
-│   │   └── templates.py         # HTML 模板
-│   ├── gui/               # GUI 桌面应用
-│   │   └── main.py              # GUI 主程序
-│   ├── config/            # 配置管理
-│   │   └── settings.py          # 配置设置
-│   └── utils/             # 工具模块
-│       ├── logging.py           # 日志配置
-│       └── validators.py        # 验证工具
-├── tests/                 # 测试代码
-├── docs/                  # 文档
-├── scripts/               # 脚本工具
-├── Dockerfile             # Docker 配置
-├── docker-compose.yml     # Docker Compose
-├── Makefile              # 开发命令
-├── pyproject.toml        # 项目配置
-└── setup.py              # 安装脚本
-```
+[wiki文档](./docs/WIKI.md)
 
 ## 🔧 API 接口
 
