@@ -9,11 +9,11 @@ from typing import List, Optional
 from fastapi import UploadFile, HTTPException
 
 from ...core.pdf_operations import PDFOperations
-from ...core.models import SplitOptions, MergeOptions, SplitMode, OperationResult, PDFInfo
+from ...core.models import SplitOptions, MergeOptions, ExtractOptions, PageSelectionOptions, SplitMode, PageSelectionMode, OperationResult, PDFInfo
 from ...core.exceptions import PDFToolError
 from ...config.settings import settings
 from ...utils.logging import get_logger
-from ..schemas.requests import SplitModeEnum, PDFSplitRequest, PDFMergeRequest
+from ..schemas.requests import SplitModeEnum, PageSelectionModeEnum, PDFSplitRequest, PDFMergeRequest, PDFExtractRequest, PDFPageSelectionRequest
 from ..schemas.responses import PDFInfoResponse, FileUploadResponse
 
 
@@ -185,6 +185,93 @@ class PDFService:
             # 清理临时文件
             if temp_file:
                 self.pdf_ops.cleanup_temp_files([temp_file])
+    
+    async def extract_pages(
+        self, 
+        file: UploadFile, 
+        request: PDFExtractRequest
+    ) -> OperationResult:
+        """提取PDF指定页面"""
+        temp_input = None
+        try:
+            # 保存上传的文件
+            temp_input = await self.save_upload_file(file)
+            
+            # 设置提取选项
+            options = ExtractOptions(
+                pages=request.pages,
+                filename_prefix=request.filename_prefix or Path(file.filename).stem
+            )
+            
+            # 执行页面提取操作
+            result = self.pdf_ops.extract_pages(temp_input, options)
+            
+            if result.success:
+                logger.info(f"PDF页面提取成功: {file.filename}, 页面: {request.pages}")
+            else:
+                logger.error(f"PDF页面提取失败: {result.message}")
+            
+            return result
+            
+        except PDFToolError as e:
+            logger.error(f"PDF页面提取失败: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error(f"PDF页面提取异常: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"提取PDF页面时出错: {str(e)}")
+        finally:
+            # 清理临时文件
+            if temp_input:
+                self.pdf_ops.cleanup_temp_files([temp_input])
+    
+    async def select_pages(
+        self, 
+        file: UploadFile, 
+        request: PDFPageSelectionRequest
+    ) -> OperationResult:
+        """统一的PDF页面选择方法"""
+        temp_input = None
+        try:
+            # 保存上传的文件
+            temp_input = await self.save_upload_file(file)
+            
+            # 转换请求模式
+            if request.mode == PageSelectionModeEnum.ALL:
+                mode = PageSelectionMode.ALL_PAGES
+            elif request.mode == PageSelectionModeEnum.PAGES:
+                mode = PageSelectionMode.SPECIFIC_PAGES
+            elif request.mode == PageSelectionModeEnum.SINGLE:
+                mode = PageSelectionMode.SINGLE_FILE
+            else:
+                raise HTTPException(status_code=400, detail=f"不支持的模式: {request.mode}")
+            
+            # 设置页面选择选项
+            options = PageSelectionOptions(
+                mode=mode,
+                pages=request.pages,
+                filename_prefix=request.filename_prefix or Path(file.filename).stem
+            )
+            
+            # 执行页面选择操作
+            result = self.pdf_ops.select_pages(temp_input, options)
+            
+            if result.success:
+                logger.info(f"PDF页面选择成功: {file.filename}, 模式: {request.mode}")
+            else:
+                logger.error(f"PDF页面选择失败: {result.message}")
+            
+            return result
+            
+        except PDFToolError as e:
+            logger.error(f"PDF页面选择失败: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error(f"PDF页面选择异常: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"页面选择时出错: {str(e)}")
+        finally:
+            # 清理临时文件
+            if temp_input:
+                self.pdf_ops.cleanup_temp_files([temp_input])
     
     def create_download_response(self, result: OperationResult, filename: str):
         """创建文件下载响应"""

@@ -9,10 +9,15 @@ from pathlib import Path
 from typing import List, Optional
 
 
-class SplitMode(Enum):
-    """PDF splitting modes"""
-    ALL_PAGES = "all"
-    PAGE_RANGE = "range"
+class PageSelectionMode(Enum):
+    """PDF页面选择模式"""
+    ALL_PAGES = "all"          # 全部页面（每页单独文件）
+    SPECIFIC_PAGES = "pages"   # 指定页面列表（每页单独文件）
+    SINGLE_FILE = "single"     # 将选中页面合并为单个文件
+
+
+# 保持向后兼容
+SplitMode = PageSelectionMode
 
 
 @dataclass
@@ -27,13 +32,35 @@ class PDFInfo:
 
 
 @dataclass
+class PageSelectionOptions:
+    """统一的PDF页面选择操作选项"""
+    mode: PageSelectionMode
+    # 页面选择参数
+    pages: Optional[List[int]] = None      # 指定页面列表（SPECIFIC_PAGES/SINGLE_FILE模式）
+    # 输出参数
+    output_dir: Optional[Path] = None
+    filename_prefix: Optional[str] = None
+    output_format: str = "pdf"
+
+
+# 保持向后兼容的别名
+@dataclass
 class SplitOptions:
     """Options for PDF splitting operations"""
-    mode: SplitMode
+    mode: PageSelectionMode
     start_page: Optional[int] = None
     end_page: Optional[int] = None
     output_dir: Optional[Path] = None
     filename_prefix: Optional[str] = None
+
+
+@dataclass
+class ExtractOptions:
+    """Options for PDF page extraction operations"""
+    pages: List[int]
+    output_dir: Optional[Path] = None
+    filename_prefix: Optional[str] = None
+    output_format: str = "pdf"
 
 
 @dataclass

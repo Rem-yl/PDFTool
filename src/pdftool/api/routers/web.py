@@ -57,24 +57,39 @@ async def merge_page(
     )
 
 
-@router.get("/split", response_class=HTMLResponse, summary="PDF拆分页面")
-async def split_page(
+@router.get("/pages", response_class=HTMLResponse, summary="PDF页面选择页面")
+async def pages_page(
     request: Request,
     settings=Depends(get_settings)
 ):
     """
-    PDF拆分操作页面
+    统一的PDF页面选择操作页面
     
-    提供文件上传和拆分选项界面
+    提供文件上传和页面选择选项界面，支持拆分、提取、合并等操作
     """
     return templates.TemplateResponse(
-        "split.html",
+        "pages.html",
         {
             "request": request,
             "app_name": settings.app_name,
             "show_back_button": True
         }
     )
+
+
+# 保持向后兼容的路由别名
+@router.get("/split", response_class=HTMLResponse, summary="PDF拆分页面（重定向）")
+async def split_page_redirect(request: Request):
+    """重定向到统一页面选择界面"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/pages?mode=range", status_code=302)
+
+
+@router.get("/extract", response_class=HTMLResponse, summary="PDF页面提取页面（重定向）")
+async def extract_page_redirect(request: Request):
+    """重定向到统一页面选择界面"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/pages?mode=pages", status_code=302)
 
 
 @router.get("/info", response_class=HTMLResponse, summary="PDF信息页面")

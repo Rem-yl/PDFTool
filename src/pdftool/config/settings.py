@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     # Application info
     app_name: str = Field(default="PDFTool")
     version: str = Field(default="1.0.0")
-    debug: bool = Field(default=False)
+    debug: bool = Field(default=False)  # uvicorn --reload
     
     # File handling
     temp_dir: Path = Field(default=Path("temp"))

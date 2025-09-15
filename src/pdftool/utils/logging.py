@@ -31,7 +31,7 @@ def setup_logging(
     log_file = log_file or settings.log_file
     
     format_string = format_string or (
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
     )
     
     # Configure root logger

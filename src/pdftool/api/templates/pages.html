@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}页面选择 - PDFTool{% endblock %}
+
+{% block header_icon %}📄{% endblock %}
+{% block header_title %}页面选择{% endblock %}
+{% block header_description %}选择、拆分、提取或合并PDF页面{% endblock %}
+
+{% set show_back_button = true %}
+
+{% block content %}
+<div class="upload-area" id="pagesDropZone">
+    <h3>选择要处理的PDF文件</h3>
+    <input type="file" id="pagesFile" accept=".pdf">
+    
+    <div class="options-group">
+        <h4>操作模式：</h4>
+        
+        <label>
+            <input type="radio" name="pageMode" value="all" checked> 
+            <strong>全部页面</strong> - 每页保存为单独文件
+        </label>
+        
+        <label>
+            <input type="radio" name="pageMode" value="pages"> 
+            <strong>指定页面</strong> - 每页保存为单独文件
+        </label>
+        
+        <label>
+            <input type="radio" name="pageMode" value="single"> 
+            <strong>合并选择</strong> - 将指定页面合并为单个文件
+        </label>
+        
+        <!-- 指定页面输入 -->
+        <div class="pages-inputs" id="pagesInputs">
+            <label>
+                页面列表: 
+                <input type="text" id="pagesInput" placeholder="例如: 1,3,5 或 1-5 或 1,3-5,8">
+            </label>
+            <p class="help-text">支持格式：单页 "3"，多页 "1,3,5"，范围 "1-5" 或混合 "1,3-5,8"</p>
+        </div>
+        
+        <!-- 通用选项 -->
+        <div class="common-options">
+            <label>
+                文件名前缀: 
+                <input type="text" id="filenamePrefix" placeholder="可选，默认使用原文件名">
+            </label>
+        </div>
+    </div>
+    
+    <button onclick="processPages()">开始处理</button>
+</div>
+
+<div class="progress-bar" id="pagesProgress">
+    <div class="progress-fill"></div>
+</div>
+
+<div id="pagesResult"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', path='/js/upload.js') }}"></script>
+<script>
+    // 设置拖放区域
+    setupDropZone('pagesDropZone', 'pagesFile');
+
+    // 切换操作模式
+    document.querySelectorAll('input[name="pageMode"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const pagesInputs = document.getElementById('pagesInputs');
+            
+            // 隐藏输入区域
+            pagesInputs.classList.remove('show');
+            
+            // 根据选择显示对应输入区域
+            if (this.value === 'pages' || this.value === 'single') {
+                pagesInputs.classList.add('show');
+            }
+        });
+    });
+
+    // 页面输入验证
+    document.getElementById('pagesInput').addEventListener('input', function() {
+        const value = this.value;
+        const pattern = /^(\d+(-\d+)?)(,\s*\d+(-\d+)?)*$/;
+        
+        if (value && !pattern.test(value)) {
+            this.setCustomValidity('请输入正确的页面格式，如: 1,3,5 或 1-5');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+
+    async function processPages() {
+        const file = document.getElementById('pagesFile').files[0];
+        const mode = document.querySelector('input[name="pageMode"]:checked').value;
+        
+        if (!file) {
+            showResult('pagesResult', '请选择PDF文件', false);
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('mode', mode);
+        
+        // 根据模式添加相应参数
+        if (mode === 'pages' || mode === 'single') {
+            const pages = document.getElementById('pagesInput').value.trim();
+            if (!pages) {
+                showResult('pagesResult', '请输入要处理的页面', false);
+                return;
+            }
+            formData.append('pages', pages);
+        }
+        
+        // 添加文件名前缀
+        const prefix = document.getElementById('filenamePrefix').value.trim();
+        if (prefix) {
+            formData.append('filename_prefix', prefix);
+        }
+
+        showProgress('pagesProgress');
+
+        try {
+            const response = await fetch('/api/v1/pdf/pages', {
+                method: 'POST',
+                body: formData
+            });
+            
+            hideProgress('pagesProgress');
+            
+            if (response.ok) {
+                const blob = await response.blob();
+                
+                // 根据Content-Disposition头获取文件名
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = 'processed_pages.pdf';
+                if (contentDisposition) {
+                    const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition);
+                    if (matches != null && matches[1]) {
+                        filename = matches[1].replace(/['"]/g, '');
+                    }
+                }
+                
+                downloadFile(blob, filename);
+                
+                // 根据模式显示成功消息
+                let message = '✅ PDF页面处理成功！';
+                if (mode === 'all') {
+                    message += '已将每页保存为单独文件';
+                } else if (mode === 'pages') {
+                    message += '已提取指定页面';
+                } else if (mode === 'single') {
+                    message += '已将选择页面合并为单个文件';
+                }
+                
+                showResult('pagesResult', message, true);
+            } else {
+                const error = await response.json();
+                showResult('pagesResult', `❌ 错误: ${error.detail}`, false);
+            }
+        } catch (error) {
+            hideProgress('pagesProgress');
+            showResult('pagesResult', `❌ 请求失败: ${error.message}`, false);
+        }
+    }
+</script>
+{% endblock %}

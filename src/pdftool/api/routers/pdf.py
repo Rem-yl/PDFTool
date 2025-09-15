@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 
 from ..dependencies import get_pdf_operations, validate_file_size, validate_file_extension
 from ..services.pdf_service import PDFService
-from ..schemas.requests import PDFSplitRequest, PDFMergeRequest, SplitModeEnum
+from ..schemas.requests import PDFSplitRequest, PDFMergeRequest, PDFExtractRequest, PDFPageSelectionRequest, SplitModeEnum, PageSelectionModeEnum
 from ..schemas.responses import PDFInfoResponse, SuccessResponse
 
 
@@ -131,6 +131,154 @@ async def get_pdf_info(
     
     # 获取PDF信息
     return await pdf_service.get_pdf_info(file)
+
+
+@router.post(
+    "/extract",
+    summary="提取PDF指定页面",
+    description="从PDF文件中提取指定的页面",
+    response_class=FileResponse
+)
+async def extract_pages(
+    file: UploadFile = File(..., description="要提取页面的PDF文件"),
+    pages: str = Form(..., description="要提取的页面列表，格式：'1,3,5' 或 '1-5'"),
+    filename_prefix: Optional[str] = Form(None, description="输出文件名前缀"),
+    pdf_service: PDFService = Depends(get_pdf_service)
+):
+    """
+    提取PDF指定页面
+    
+    - **file**: 要处理的PDF文件
+    - **pages**: 页面列表，支持两种格式：
+        - 逗号分隔：'1,3,5,7' 
+        - 范围格式：'1-5' 或 '1,3-5,8'
+    - **filename_prefix**: 输出文件名前缀（可选）
+    
+    返回提取的页面文件（单页时返回PDF，多页时返回ZIP包）
+    """
+    # 验证文件
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="文件名不能为空")
+    validate_file_extension(file.filename)
+    
+    try:
+        # 解析页面列表
+        page_list = []
+        for part in pages.split(','):
+            part = part.strip()
+            if '-' in part:
+                # 处理范围格式 "1-5"
+                start, end = map(int, part.split('-'))
+                if start > end:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"页面范围错误: {start}-{end}，起始页不能大于结束页"
+                    )
+                page_list.extend(range(start, end + 1))
+            else:
+                # 处理单个页面
+                page_list.append(int(part))
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="页面格式错误，请使用 '1,3,5' 或 '1-5' 格式"
+        )
+    
+    # 创建请求对象
+    request = PDFExtractRequest(
+        pages=page_list,
+        filename_prefix=filename_prefix
+    )
+    
+    # 执行页面提取
+    result = await pdf_service.extract_pages(file, request)
+    
+    # 返回下载响应
+    if len(page_list) == 1:
+        filename = f"page_{page_list[0]}"
+    else:
+        filename = f"pages_{min(page_list)}-{max(page_list)}"
+    
+    return pdf_service.create_download_response(result, filename)
+
+
+@router.post(
+    "/pages",
+    summary="PDF页面选择和处理",
+    description="统一的PDF页面选择功能，支持拆分、提取、合并等操作",
+    response_class=FileResponse
+)
+async def select_pages(
+    file: UploadFile = File(..., description="要处理的PDF文件"),
+    mode: PageSelectionModeEnum = Form(..., description="页面选择模式"),
+    pages: Optional[str] = Form(None, description="指定页面列表，格式：'1,3,5' 或 '1-5'"),
+    filename_prefix: Optional[str] = Form(None, description="输出文件名前缀"),
+    pdf_service: PDFService = Depends(get_pdf_service)
+):
+    """
+    统一的PDF页面选择和处理
+    
+    - **file**: 要处理的PDF文件
+    - **mode**: 页面选择模式：
+        - `all`: 全部页面（每页单独文件）
+        - `pages`: 指定页面列表（每页单独文件）
+        - `single`: 将选中页面合并为单个文件
+    - **pages**: 页面列表，支持格式：'1,3,5' 或 '1-5' 或 '1,3-5,8'
+    - **filename_prefix**: 输出文件名前缀
+    """
+    # 验证文件
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="文件名不能为空")
+    validate_file_extension(file.filename)
+    
+    # 解析页面列表（如果需要）
+    page_list = None
+    if pages and mode in [PageSelectionModeEnum.PAGES, PageSelectionModeEnum.SINGLE]:
+        try:
+            page_list = []
+            for part in pages.split(','):
+                part = part.strip()
+                if '-' in part:
+                    # 处理范围格式 "1-5"
+                    start, end = map(int, part.split('-'))
+                    if start > end:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"页面范围错误: {start}-{end}，起始页不能大于结束页"
+                        )
+                    page_list.extend(range(start, end + 1))
+                else:
+                    # 处理单个页面
+                    page_list.append(int(part))
+            page_list = sorted(list(set(page_list)))  # 去重并排序
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="页面格式错误，请使用 '1,3,5' 或 '1-5' 格式"
+            )
+    
+    # 创建请求对象
+    request = PDFPageSelectionRequest(
+        mode=mode,
+        pages=page_list,
+        filename_prefix=filename_prefix
+    )
+    
+    # 执行页面选择
+    result = await pdf_service.select_pages(file, request)
+    
+    # 返回下载响应
+    if mode == PageSelectionModeEnum.ALL:
+        filename = "all_pages"
+    elif mode in [PageSelectionModeEnum.PAGES, PageSelectionModeEnum.SINGLE]:
+        if page_list and len(page_list) == 1:
+            filename = f"page_{page_list[0]}"
+        else:
+            filename = f"selected_pages"
+    else:
+        filename = "pdf_pages"
+    
+    return pdf_service.create_download_response(result, filename)
 
 
 @router.get(
