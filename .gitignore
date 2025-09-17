@@ -3,3 +3,5 @@ __pycache__
 .vscode/settings.json
 .serena
 .claude
+.DS_Store
+.coverage
