@@ -60,31 +60,31 @@
         <h4>水印位置：</h4>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 300px; margin: 15px auto;">
             <label style="text-align: center; margin: 5px;">
-                <input type="radio" name="position" value="top-left"> 左上
+                <input type="radio" name="position" value="1"> 左上
             </label>
             <label style="text-align: center; margin: 5px;">
-                <input type="radio" name="position" value="top-center"> 中上
+                <input type="radio" name="position" value="2"> 中上
             </label>
             <label style="text-align: center; margin: 5px;">
-                <input type="radio" name="position" value="top-right"> 右上
+                <input type="radio" name="position" value="3"> 右上
             </label>
             <label style="text-align: center; margin: 5px;">
-                <input type="radio" name="position" value="center-left"> 左中
+                <input type="radio" name="position" value="4"> 左中
             </label>
             <label style="text-align: center; margin: 5px;">
-                <input type="radio" name="position" value="center" checked> 居中
+                <input type="radio" name="position" value="5" checked> 居中
             </label>
             <label style="text-align: center; margin: 5px;">
-                <input type="radio" name="position" value="center-right"> 右中
+                <input type="radio" name="position" value="6"> 右中
             </label>
             <label style="text-align: center; margin: 5px;">
-                <input type="radio" name="position" value="bottom-left"> 左下
+                <input type="radio" name="position" value="7"> 左下
             </label>
             <label style="text-align: center; margin: 5px;">
-                <input type="radio" name="position" value="bottom-center"> 中下
+                <input type="radio" name="position" value="8"> 中下
             </label>
             <label style="text-align: center; margin: 5px;">
-                <input type="radio" name="position" value="bottom-right"> 右下
+                <input type="radio" name="position" value="9"> 右下
             </label>
         </div>
     </div>
@@ -255,7 +255,7 @@
         }
 
         const formData = new FormData();
-        formData.append('pdf_file', pdfFile);
+        formData.append('file', pdfFile);
         formData.append('watermark_type', watermarkType);
 
         // 添加水印相关参数

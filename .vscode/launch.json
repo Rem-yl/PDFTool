@@ -1,0 +1,127 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug FastAPI App",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pdftool.api.main",
+            "args": [],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src",
+                "PDFTOOL_DEBUG": "true",
+                "PDFTOOL_LOG_LEVEL": "DEBUG"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "justMyCode": false,
+            "stopOnEntry": false
+        },
+        {
+            "name": "Debug FastAPI with Uvicorn",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "pdftool.api.main:app",
+                "--reload",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--log-level",
+                "debug"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src",
+                "PDFTOOL_DEBUG": "true",
+                "PDFTOOL_LOG_LEVEL": "DEBUG"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "justMyCode": false,
+            "stopOnEntry": false
+        },
+        {
+            "name": "Debug FastAPI App Direct",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "pdftool.api.app:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--log-level",
+                "debug"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src",
+                "PDFTOOL_DEBUG": "true",
+                "PDFTOOL_LOG_LEVEL": "DEBUG"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "justMyCode": false,
+            "stopOnEntry": false
+        },
+        {
+            "name": "Debug GUI App",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/pdftool/gui/main.py",
+            "args": [],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src",
+                "PDFTOOL_DEBUG": "true",
+                "PDFTOOL_LOG_LEVEL": "DEBUG"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "justMyCode": true,
+            "stopOnEntry": false
+        },
+        {
+            "name": "Debug Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/",
+                "-v",
+                "--tb=short"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src",
+                "PDFTOOL_DEBUG": "true",
+                "PDFTOOL_LOG_LEVEL": "DEBUG"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "justMyCode": false,
+            "stopOnEntry": false
+        },
+        {
+            "name": "Debug Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src",
+                "PDFTOOL_DEBUG": "true",
+                "PDFTOOL_LOG_LEVEL": "DEBUG"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "justMyCode": false,
+            "stopOnEntry": false
+        }
+    ]
+}
