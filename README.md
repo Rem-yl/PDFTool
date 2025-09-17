@@ -297,13 +297,33 @@ docker-compose up -d
 
 ## 🔄 从旧版本迁移
 
-如果你使用的是旧版本的 PDFTool，请参考 [MIGRATION.md](MIGRATION.md) 获取详细的迁移指南。
+**重要：PDFOperations类已完全移除**
 
-主要变化：
-- 新的模块化架构
-- 改进的错误处理
-- 配置管理系统
-- 类型安全支持
+如果你在代码中使用了`PDFOperations`类，需要迁移到新的插件架构：
+
+### 旧版本代码
+```python
+from pdftool import PDFOperations
+
+pdf_ops = PDFOperations()
+result = pdf_ops.merge_pdfs(files, options)
+```
+
+### 新版本代码
+```python
+from pdftool import PDFProcessor
+
+pdf_processor = PDFProcessor()
+result = pdf_processor.merge_pdfs(files, options)
+```
+
+### 主要变化：
+- **完全移除PDFOperations类** - 强制使用新架构
+- **纯插件式架构** - 基于策略模式和工厂模式
+- **零向后兼容** - 确保使用现代化设计
+- **动态注册机制** - 运行时扩展功能
+- **改进的错误处理** - 更清晰的异常层次
+- **类型安全支持** - 完整的类型注解
 
 ## 🔌 架构扩展指南
 

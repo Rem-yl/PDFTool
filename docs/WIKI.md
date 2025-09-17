@@ -274,43 +274,55 @@ class MergeOperation(IPDFOperation):
         pass
 ```
 
-### 5. 兼容性层 (`core/pdf_operations.py`)
+### 5. PDF处理器工具方法
 
-**向后兼容的核心引擎**，保持原有API不变：
+**便捷方法集合**，提供常用的工具功能：
 
 ```python
-class PDFOperations:
-    """PDF操作核心引擎 - 兼容性包装器"""
+class PDFProcessor:
+    """PDF处理器 - 包含便捷工具方法"""
 
-    def __init__(self, temp_dir: Optional[Path] = None):
-        self.temp_dir = temp_dir or Path("temp")
-        self.temp_dir.mkdir(exist_ok=True)
-        self.processor = PDFProcessor(temp_dir)
+    def create_zip_archive(self, files: List[Path], output_path: Optional[Path] = None) -> Path:
+        """创建ZIP归档文件"""
+        output_path = output_path or self.temp_dir / f"archive_{uuid4().hex}.zip"
 
-    # 保持原有方法签名
-    def merge_pdfs(self, files: List[Path], options: MergeOptions) -> OperationResult:
-        """合并PDF文件"""
-        return self.processor.process("merge", files, options)
+        with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for file_path in files:
+                zf.write(file_path, file_path.name)
+        return output_path
 
-    def split_pdf(self, file_path: Path, options: SplitOptions) -> OperationResult:
-        """拆分PDF文件"""
-        return self.processor.process("split", file_path, options)
+    def cleanup_temp_files(self, files: List[Path]) -> None:
+        """清理临时文件"""
+        for file_path in files:
+            try:
+                if file_path.is_file():
+                    file_path.unlink()
+                elif file_path.is_dir():
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                logger.warning(f"Failed to cleanup {file_path}: {str(e)}")
 
-    def add_watermark(self, file_path: Path, options: WatermarkOptions) -> OperationResult:
-        """添加水印"""
-        return self.processor.process("watermark", file_path, options)
+    # 便捷方法 - 直接调用对应操作
+    def merge_pdfs(self, files: List[Path], options: Any) -> OperationResult:
+        return self.execute_operation("merge", files, options)
+
+    def split_pdf(self, file_path: Path, options: Any) -> OperationResult:
+        return self.execute_operation("split", file_path, options)
+
+    def add_watermark(self, file_path: Path, options: Any) -> OperationResult:
+        return self.execute_operation("watermark", file_path, options)
 
     def get_pdf_info(self, file_path: Path) -> PDFInfo:
-        """获取PDF信息"""
-        return self.processor.process("info", file_path, None)
+        return self.execute_operation("info", file_path, None)
 ```
 
-**新架构特点**:
-- 插件式扩展：新功能通过实现接口添加
-- 动态注册：运行时注册新操作类
-- 策略模式：灵活选择操作实现
-- 向后兼容：原有代码无需修改
-- 职责分离：每个组件专注单一功能
+**纯插件架构特点**:
+- **零遗留代码**：完全移除单体PDFOperations类
+- **强制现代化**：只能使用插件式架构
+- **插件式扩展**：新功能通过实现接口添加
+- **动态注册**：运行时注册新操作类
+- **策略模式**：灵活选择操作实现
+- **职责分离**：每个组件专注单一功能
 
 ### 2. 异常处理系统 (`core/exceptions.py`)
 
