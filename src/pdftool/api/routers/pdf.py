@@ -12,7 +12,6 @@ from ..schemas.requests import (
     PageSelectionModeEnum,
     PDFMergeRequest,
     PDFPageSelectionRequest,
-    WatermarkPageSelectionModeEnum,
     WatermarkPositionEnum,
     WatermarkTypeEnum,
 )
@@ -166,9 +165,10 @@ async def get_supported_formats():
     )
 
 
+# REM: 实现水印功能接口
 @router.post(
-    "/watermarks",
-    response_class=FileResponse,
+    "/watermark",
+    response_class=JSONResponse,
     summary="添加水印",
     description="将水印添加到PDF文件中",
 )
@@ -182,10 +182,26 @@ async def add_watermarks(
     image_scale: Optional[float] = Form(None, description="图片缩放比例"),
     position: WatermarkPositionEnum = Form(..., description="水印位置"),
     opacity: float = Form(..., description="透明度"),
-    page_selection: WatermarkPageSelectionModeEnum = Form(..., description="页面选择模式"),
-    start_page: Optional[int] = Form(None, description="起始页码"),
-    end_page: Optional[int] = Form(None, description="结束页码"),
+    page_selection: PageSelectionModeEnum = Form(..., description="页面选择模式"),
     specific_pages: Optional[str] = Form(None, description="指定页面"),
     pdf_service: PDFService = Depends(get_pdf_service),
 ):
     validate_file_extension(file.filename)
+
+    content = {
+        "file": file.filename,
+        "watermark_type": watermark_type,
+        "watermark_text": watermark_text,
+        "font_size": font_size,
+        "font_color": font_color,
+        "watermark_image": watermark_image.filename,
+        "image_scale": image_scale,
+        "position": position,
+        "opacity": opacity,
+        "page_selection": page_selection,
+        "specific_pages": specific_pages,
+    }
+
+    print(content)
+
+    raise NotImplementedError("水印功能尚未实现")

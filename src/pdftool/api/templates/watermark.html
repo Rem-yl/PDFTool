@@ -109,19 +109,8 @@
         <label>
             <input type="radio" name="pageSelection" value="range"> 指定页面范围
         </label>
-        <label>
-            <input type="radio" name="pageSelection" value="specific"> 指定页面
-        </label>
 
         <div class="pages-inputs" id="pageRangeInputs">
-            <div style="margin-bottom: 10px;">
-                起始页: <input type="number" id="startPage" value="1" min="1">
-                结束页: <input type="number" id="endPage" min="1" placeholder="可选">
-            </div>
-            <div class="help-text">如果结束页为空，则从起始页到文档末尾</div>
-        </div>
-
-        <div class="pages-inputs" id="specificPagesInputs">
             <div style="margin-bottom: 10px;">
                 <label for="specificPages">指定页面：</label>
                 <input type="text" id="specificPages" placeholder="例如: 1,3,5-8,10" style="width: 200px; margin-left: 10px;">
@@ -166,18 +155,14 @@
     document.querySelectorAll('input[name="pageSelection"]').forEach(radio => {
         radio.addEventListener('change', function() {
             const rangeInputs = document.getElementById('pageRangeInputs');
-            const specificInputs = document.getElementById('specificPagesInputs');
 
             // 隐藏所有输入框
             rangeInputs.classList.remove('show');
-            specificInputs.classList.remove('show');
 
             // 显示对应的输入框
             if (this.value === 'range') {
                 rangeInputs.classList.add('show');
-            } else if (this.value === 'specific') {
-                specificInputs.classList.add('show');
-            }
+            } 
         });
     });
 
@@ -240,7 +225,7 @@
 
         // 验证页面选择
         const pageSelection = document.querySelector('input[name="pageSelection"]:checked').value;
-        if (pageSelection === 'specific') {
+        if (pageSelection === 'range') {
             const specificPages = document.getElementById('specificPages').value.trim();
             if (!specificPages) {
                 showResult('watermarkResult', '请输入要添加水印的页面', false);
@@ -275,11 +260,6 @@
         // 添加页面选择参数
         formData.append('page_selection', pageSelection);
         if (pageSelection === 'range') {
-            const startPage = document.getElementById('startPage').value;
-            const endPage = document.getElementById('endPage').value;
-            formData.append('start_page', startPage);
-            if (endPage) formData.append('end_page', endPage);
-        } else if (pageSelection === 'specific') {
             formData.append('specific_pages', document.getElementById('specificPages').value);
         }
 

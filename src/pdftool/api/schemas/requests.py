@@ -38,14 +38,6 @@ class WatermarkPositionEnum(int, Enum):
     BOTTOM_RIGHT = 9
 
 
-class WatermarkPageSelectionModeEnum(str, Enum):
-    """PDF页面选择模式枚举"""
-
-    ALL = "all"  # 全部页面（每页单独文件）
-    PAGES = "pages"  # 指定页面列表（每页单独文件）
-    SPECIFIC = "specific"  # 将选中页面合并为单个文件
-
-
 class PDFMergeRequest(BaseModel):
     """PDF合并请求模型"""
 
