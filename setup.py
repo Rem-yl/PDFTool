@@ -2,8 +2,9 @@
 Setup script for PDFTool
 """
 
-from setuptools import setup, find_packages
 from pathlib import Path
+
+from setuptools import find_packages, setup
 
 # Read README
 readme_file = Path(__file__).parent / "README.md"
@@ -11,7 +12,9 @@ long_description = readme_file.read_text(encoding="utf-8") if readme_file.exists
 
 # Read requirements
 requirements_file = Path(__file__).parent / "requirements.txt"
-requirements = requirements_file.read_text().strip().split('\n') if requirements_file.exists() else []
+requirements = (
+    requirements_file.read_text().strip().split("\n") if requirements_file.exists() else []
+)
 
 setup(
     name="pdftool",

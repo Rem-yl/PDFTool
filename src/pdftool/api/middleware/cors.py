@@ -10,7 +10,7 @@ from ...config.settings import settings
 
 def setup_cors(app: FastAPI) -> None:
     """配置CORS中间件"""
-    
+
     # 根据环境配置不同的CORS策略
     if settings.debug:
         # 开发环境 - 宽松的CORS策略

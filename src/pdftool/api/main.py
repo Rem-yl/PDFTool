@@ -3,10 +3,9 @@ PDFTool API主入口文件
 """
 
 import uvicorn
+
 from ..config.settings import settings
 from ..utils.logging import get_logger
-from .app import app
-
 
 logger = get_logger("api.main")
 
@@ -16,9 +15,11 @@ def main() -> None:
     API服务主入口点
     """
     logger.info(f"启动PDFTool API服务...")
-    logger.info(f"配置信息: 主机={settings.api_host}, 端口={settings.api_port}, "
-                f"调试模式={settings.debug}, 工作进程={settings.api_workers}")
-    
+    logger.info(
+        f"配置信息: 主机={settings.api_host}, 端口={settings.api_port}, "
+        f"调试模式={settings.debug}, 工作进程={settings.api_workers}"
+    )
+
     try:
         uvicorn.run(
             "pdftool.api.app:app",
@@ -29,7 +30,7 @@ def main() -> None:
             log_level=settings.log_level.lower(),
             access_log=True,
             server_header=False,
-            date_header=False
+            date_header=False,
         )
     except Exception as e:
         logger.error(f"启动API服务失败: {str(e)}")
