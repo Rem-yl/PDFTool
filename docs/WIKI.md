@@ -24,6 +24,7 @@
 - **PDF合并**: 将多个PDF文件合并为一个
 - **PDF拆分**: 按页面或范围拆分PDF文件
 - **PDF信息提取**: 获取PDF元数据和属性信息
+- **PDF水印**: 添加文本或图片水印，支持9个位置和透明度调节
 
 ### 三种接口
 1. **桌面GUI应用** (`pdftool-gui`): 基于Tkinter的现代化桌面界面
@@ -36,7 +37,7 @@
 
 ### 设计原则
 
-PDFTool采用**分层架构模式**，遵循以下设计原则：
+PDFTool采用**插件式架构模式** (PDF-3重构)，具有高度可扩展性：
 
 ```
 ┌─────────────────────────────────────────┐
@@ -46,27 +47,54 @@ PDFTool采用**分层架构模式**，遵循以下设计原则：
 │                 │(FastAPI)  │           │
 └─────────────────┴───────────┴───────────┘
 ┌─────────────────────────────────────────┐
-│         业务逻辑层 (Business Layer)        │
+│         路由层 (Router Layer)           │
 ├─────────────────────────────────────────┤
-│     PDFOperations (核心处理引擎)          │
-│   • merge_pdfs() • split_pdf()          │
-│   • get_pdf_info() • validate_pdf()     │
+│   Web Routes │ PDF API │ Health │ Docs │
 └─────────────────────────────────────────┘
 ┌─────────────────────────────────────────┐
-│          数据层 (Data Layer)             │
+│        中间件层 (Middleware Layer)        │
 ├─────────────────────────────────────────┤
-│   Models • Settings • Exceptions        │
-│   Logging • Validators • Utils         │
+│  CORS │ Error Handler │ Logging │ Auth  │
+└─────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│      服务处理层 (Service Handler)        │
+├─────────────────────────────────────────┤
+│Watermark│Merge│Split│Info│ServiceRegistry│
+└─────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│      策略引擎层 (Strategy Engine)        │
+├─────────────────────────────────────────┤
+│    PDFProcessor + OperationFactory      │
+└─────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│        操作插件层 (Operations)           │
+├─────────────────────────────────────────┤
+│ WatermarkOp │ MergeOp │ SplitOp │ InfoOp │
+└─────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│          核心层 (Core Layer)             │
+├─────────────────────────────────────────┤
+│         PDF引擎 (PyPDF2/Reportlab)       │
 └─────────────────────────────────────────┘
 ```
 
 ### 核心设计模式
 
-1. **单一职责原则**: 每个模块负责特定功能
-2. **依赖注入**: 通过配置系统管理依赖
-3. **异常层次化**: 自定义异常继承体系
-4. **工厂模式**: PDFOperations作为核心工厂类
-5. **策略模式**: 不同分割模式的实现
+1. **策略模式**: PDF操作通过可插拔的策略实现
+2. **工厂模式**: OperationFactory管理操作类的创建和注册
+3. **服务注册模式**: API服务可动态注册和发现
+4. **依赖注入**: 通过ServiceManager统一管理依赖
+5. **接口隔离**: 清晰的接口定义实现解耦
+6. **单一职责**: 每个操作类专注于单一功能
+7. **开闭原则**: 对扩展开放，对修改封闭
+
+### 架构优势
+
+- **高扩展性**: 新功能通过插件方式添加，无需修改核心代码
+- **解耦设计**: 各层职责单一，便于测试和维护
+- **策略引擎**: 支持动态选择和注册PDF操作
+- **服务注册**: API服务可以运行时注册和发现
+- **向后兼容**: 现有功能保持不变，平滑升级
 
 ---
 
@@ -76,12 +104,37 @@ PDFTool采用**分层架构模式**，遵循以下设计原则：
 pdftool/
 ├── 📁 src/pdftool/              # 主要源码目录
 │   ├── 📁 core/                 # 核心业务逻辑
-│   │   ├── pdf_operations.py    # 📋 PDF操作核心引擎
+│   │   ├── interfaces.py        # 🔌 核心接口定义
+│   │   ├── operation_factory.py # 🏭 操作工厂
+│   │   ├── pdf_processor.py     # ⚙️ PDF处理器(新架构)
+│   │   ├── pdf_operations.py    # 📋 PDF操作引擎(兼容)
 │   │   ├── models.py            # 📊 数据模型定义
-│   │   └── exceptions.py        # ⚠️ 自定义异常类
+│   │   ├── exceptions.py        # ⚠️ 自定义异常类
+│   │   └── 📁 operations/       # 🔌 操作插件
+│   │       ├── watermark.py     # 💧 水印操作
+│   │       ├── merge.py         # 📄 合并操作
+│   │       ├── split.py         # ✂️ 拆分操作
+│   │       └── info.py          # ℹ️ 信息提取操作
 │   ├── 📁 api/                  # Web API 接口
 │   │   ├── main.py              # 🌐 FastAPI应用主文件
-│   │   └── templates.py         # 🎨 HTML模板管理
+│   │   ├── app.py               # 🏗️ 应用工厂
+│   │   ├── interfaces.py        # 🔌 API接口定义
+│   │   ├── service_manager.py   # 👔 服务管理器
+│   │   ├── service_registry.py  # 📋 服务注册表
+│   │   ├── dependencies.py      # 🔗 依赖注入
+│   │   ├── 📁 handlers/         # 🎯 服务处理器
+│   │   │   ├── watermark.py     # 💧 水印服务处理器
+│   │   │   ├── merge.py         # 📄 合并服务处理器
+│   │   │   ├── split.py         # ✂️ 拆分服务处理器
+│   │   │   └── info.py          # ℹ️ 信息服务处理器
+│   │   ├── 📁 routers/          # 🛣️ 路由模块
+│   │   │   ├── web.py           # 🌐 Web界面路由
+│   │   │   ├── pdf.py           # 📄 PDF处理API路由
+│   │   │   ├── health.py        # ❤️ 健康检查路由
+│   │   │   └── docs.py          # 📚 API文档路由
+│   │   ├── 📁 middleware/       # 🔧 中间件层
+│   │   ├── 📁 schemas/          # 📊 数据模式定义
+│   │   └── 📁 templates/        # 🎨 前端模板
 │   ├── 📁 gui/                  # 桌面GUI应用
 │   │   └── main.py              # 🖥️ Tkinter GUI主程序
 │   ├── 📁 config/               # 配置管理
@@ -91,6 +144,10 @@ pdftool/
 │       └── validators.py        # ✅ 输入验证工具
 ├── 📁 tests/                    # 测试代码
 │   └── test_pdf_operations.py   # 🧪 核心功能测试
+├── 📁 docs/                     # 项目文档
+│   ├── PDF-3_REFACTOR.md        # 📋 重构文档
+│   ├── WIKI.md                  # 📖 架构详细文档
+│   └── TODO.md                  # 📝 开发计划
 ├── 📄 pyproject.toml            # 📦 项目配置和依赖
 ├── 📄 Makefile                  # 🔧 开发命令集合
 ├── 📄 CLAUDE.md                 # 🤖 Claude Code 指南
@@ -102,31 +159,158 @@ pdftool/
 
 ## 🔧 核心组件
 
-### 1. PDFOperations 引擎 (`core/pdf_operations.py`)
+### 1. 核心接口层 (`core/interfaces.py`)
 
-**核心处理引擎**，所有PDF操作的入口点：
+**统一接口定义**，为插件式架构提供标准化接口：
+
+```python
+class IPDFOperation(ABC):
+    """PDF操作接口"""
+
+    @abstractmethod
+    def execute(self, input_file: Path, options: Any) -> OperationResult:
+        """执行PDF操作"""
+        pass
+
+    @property
+    @abstractmethod
+    def operation_name(self) -> str:
+        """操作名称"""
+        pass
+
+class IServiceHandler(ABC):
+    """服务处理器接口"""
+
+    @abstractmethod
+    async def handle(self, files: List[UploadFile], request: Any) -> OperationResult:
+        """处理API请求"""
+        pass
+
+    @property
+    @abstractmethod
+    def service_name(self) -> str:
+        """服务名称"""
+        pass
+```
+
+### 2. PDF处理器 (`core/pdf_processor.py`)
+
+**新架构核心处理器**，基于策略模式的PDF操作引擎：
+
+```python
+class PDFProcessor:
+    """基于策略模式的PDF处理器"""
+
+    def __init__(self, temp_dir: Optional[Path] = None):
+        self.temp_dir = temp_dir or Path("temp")
+        self.operation_factory = OperationFactory()
+
+    def process(self, operation_name: str, input_file: Path, options: Any) -> OperationResult:
+        """执行指定操作"""
+        operation = self.operation_factory.create_operation(operation_name)
+        return operation.execute(input_file, options)
+
+    def register_operation(self, name: str, operation_class: Type[IPDFOperation]) -> None:
+        """注册新操作"""
+        self.operation_factory.register(name, operation_class)
+```
+
+### 3. 操作工厂 (`core/operation_factory.py`)
+
+**工厂模式实现**，管理PDF操作类的创建和注册：
+
+```python
+class OperationFactory:
+    """PDF操作工厂类"""
+
+    def __init__(self):
+        self._operations: Dict[str, Type[IPDFOperation]] = {}
+        self._register_builtin_operations()
+
+    def register(self, name: str, operation_class: Type[IPDFOperation]) -> None:
+        """注册操作类"""
+        self._operations[name] = operation_class
+
+    def create_operation(self, name: str) -> IPDFOperation:
+        """创建操作实例"""
+        if name not in self._operations:
+            raise ValueError(f"Unknown operation: {name}")
+        return self._operations[name]()
+
+    def list_operations(self) -> List[str]:
+        """列出所有可用操作"""
+        return list(self._operations.keys())
+```
+
+### 4. 操作插件层 (`core/operations/`)
+
+**独立操作类**，每个PDF功能一个专用类：
+
+```python
+# core/operations/watermark.py
+class WatermarkOperation(IPDFOperation):
+    """水印操作插件"""
+
+    @property
+    def operation_name(self) -> str:
+        return "watermark"
+
+    def execute(self, input_file: Path, options: WatermarkOptions) -> OperationResult:
+        """执行水印添加"""
+        # 具体水印处理逻辑
+        pass
+
+# core/operations/merge.py
+class MergeOperation(IPDFOperation):
+    """合并操作插件"""
+
+    @property
+    def operation_name(self) -> str:
+        return "merge"
+
+    def execute(self, input_files: List[Path], options: MergeOptions) -> OperationResult:
+        """执行PDF合并"""
+        # 具体合并处理逻辑
+        pass
+```
+
+### 5. 兼容性层 (`core/pdf_operations.py`)
+
+**向后兼容的核心引擎**，保持原有API不变：
 
 ```python
 class PDFOperations:
-    """PDF操作核心引擎"""
-    
+    """PDF操作核心引擎 - 兼容性包装器"""
+
     def __init__(self, temp_dir: Optional[Path] = None):
-        """初始化操作引擎"""
         self.temp_dir = temp_dir or Path("temp")
         self.temp_dir.mkdir(exist_ok=True)
-    
-    # 核心方法
-    def merge_pdfs(self, files: List[Path], options: MergeOptions) -> OperationResult
-    def split_pdf(self, file_path: Path, options: SplitOptions) -> OperationResult  
-    def get_pdf_info(self, file_path: Path) -> PDFInfo
-    def validate_pdf_file(self, file_path: Path) -> None
+        self.processor = PDFProcessor(temp_dir)
+
+    # 保持原有方法签名
+    def merge_pdfs(self, files: List[Path], options: MergeOptions) -> OperationResult:
+        """合并PDF文件"""
+        return self.processor.process("merge", files, options)
+
+    def split_pdf(self, file_path: Path, options: SplitOptions) -> OperationResult:
+        """拆分PDF文件"""
+        return self.processor.process("split", file_path, options)
+
+    def add_watermark(self, file_path: Path, options: WatermarkOptions) -> OperationResult:
+        """添加水印"""
+        return self.processor.process("watermark", file_path, options)
+
+    def get_pdf_info(self, file_path: Path) -> PDFInfo:
+        """获取PDF信息"""
+        return self.processor.process("info", file_path, None)
 ```
 
-**设计特点**:
-- 统一的结果返回格式 (`OperationResult`)
-- 完整的错误处理和验证
-- 临时文件自动管理
-- 支持批量操作
+**新架构特点**:
+- 插件式扩展：新功能通过实现接口添加
+- 动态注册：运行时注册新操作类
+- 策略模式：灵活选择操作实现
+- 向后兼容：原有代码无需修改
+- 职责分离：每个组件专注单一功能
 
 ### 2. 异常处理系统 (`core/exceptions.py`)
 
@@ -219,41 +403,137 @@ class SplitMode(Enum):
 
 ## 🌐 API 接口架构
 
-### 模块化API架构
+### 插件式API架构
 
-全新的**工程化模块架构**遵循企业级标准：
+基于**服务注册模式**的现代化API架构设计：
 
 ```
 src/pdftool/api/
 ├── 📁 app.py                    # 🏗️ FastAPI应用工厂
 ├── 📁 main.py                   # 🚀 应用入口点和启动器
-├── 📁 routers/                  # 🛣️ 路由模块
+├── 📁 interfaces.py             # 🔌 API服务接口定义
+├── 📁 service_manager.py        # 👔 服务管理器
+├── 📁 service_registry.py       # 📋 服务注册表
+├── 📁 handlers/                 # 🎯 服务处理器 (NEW)
+│   ├── watermark.py             # 💧 水印服务处理器
+│   ├── merge.py                 # 📄 合并服务处理器
+│   ├── split.py                 # ✂️ 拆分服务处理器
+│   └── info.py                  # ℹ️ 信息服务处理器
+├── 📁 routers/                  # 🛣️ 路由模块 (UPDATED)
 │   ├── web.py                   # 🌐 Web界面路由
-│   ├── pdf.py                   # 📄 PDF处理API路由  
+│   ├── pdf.py                   # 📄 统一PDF API路由 (v1)
 │   ├── health.py                # ❤️ 健康检查路由
 │   └── docs.py                  # 📚 API文档路由
 ├── 📁 middleware/               # 🔧 中间件层
 │   ├── cors.py                  # 🌍 跨域处理
 │   ├── error_handler.py         # ⚠️ 全局错误处理
 │   └── logging.py               # 📝 请求日志记录
-├── 📁 services/                 # 🏢 业务逻辑层
-│   ├── pdf_service.py           # 📋 PDF操作服务
-│   └── file_service.py          # 📁 文件管理服务
 ├── 📁 schemas/                  # 📊 数据模式定义
 │   ├── requests.py              # 📥 请求模型
 │   ├── responses.py             # 📤 响应模型
 │   └── models.py                # 📋 数据传输对象
 ├── 📁 dependencies.py           # 🔗 依赖注入
-├── 📁 templates/                # 🎨 前端模板
+├── 📁 templates/                # 🎨 前端模板 (UPDATED)
 │   ├── base.html                # 🏗️ 基础模板
 │   ├── index.html               # 🏠 功能选择首页
 │   ├── merge.html               # 📄 PDF合并页面
 │   ├── split.html               # ✂️ PDF拆分页面
+│   ├── watermark.html           # 💧 PDF水印页面 (NEW)
 │   ├── info.html                # ℹ️ PDF信息页面
 │   └── static/                  # 📁 静态资源
 │       ├── css/                 # 🎨 样式文件
 │       └── js/                  # ⚡ JavaScript
 └── 📁 utils/                    # 🛠️ API工具函数
+```
+
+### 新架构核心组件
+
+#### 1. 服务管理器 (`api/service_manager.py`)
+
+**统一服务管理**，负责服务的注册、发现和调用：
+
+```python
+class ServiceManager:
+    """API服务管理器"""
+
+    def __init__(self):
+        self.registry = ServiceRegistry()
+        self._register_builtin_services()
+
+    def register_service(self, name: str, handler_class: Type[IServiceHandler]) -> None:
+        """注册服务处理器"""
+        self.registry.register(name, handler_class)
+
+    async def handle_request(self, service_name: str, files: List[UploadFile],
+                           request: Any) -> OperationResult:
+        """处理API请求"""
+        handler = self.registry.get_handler(service_name)
+        return await handler.handle(files, request)
+
+    def list_services(self) -> List[str]:
+        """列出所有可用服务"""
+        return self.registry.list_services()
+```
+
+#### 2. 服务处理器 (`api/handlers/`)
+
+**专用处理器**，每个PDF功能对应一个API服务处理器：
+
+```python
+# api/handlers/watermark.py
+class WatermarkServiceHandler(IServiceHandler):
+    """水印服务处理器"""
+
+    @property
+    def service_name(self) -> str:
+        return "watermark"
+
+    async def handle(self, files: List[UploadFile],
+                    request: WatermarkRequest) -> OperationResult:
+        """处理水印添加请求"""
+        # 验证请求参数
+        # 调用核心水印操作
+        # 返回结果
+        pass
+
+# api/handlers/merge.py
+class MergeServiceHandler(IServiceHandler):
+    """合并服务处理器"""
+
+    @property
+    def service_name(self) -> str:
+        return "merge"
+
+    async def handle(self, files: List[UploadFile],
+                    request: MergeRequest) -> OperationResult:
+        """处理PDF合并请求"""
+        # 合并处理逻辑
+        pass
+```
+
+#### 3. 统一PDF路由 (`api/routers/pdf.py`)
+
+**版本化API端点**，所有PDF操作通过统一路由：
+
+```python
+@router.post("/api/v1/pdf/{operation}")
+async def handle_pdf_operation(
+    operation: str,
+    files: List[UploadFile] = File(...),
+    request_data: Dict[str, Any] = Depends(parse_form_data),
+    service_manager: ServiceManager = Depends(get_service_manager)
+):
+    """统一PDF操作处理端点"""
+    try:
+        result = await service_manager.handle_request(operation, files, request_data)
+
+        if result.success:
+            return FileResponse(result.output_files[0])
+        else:
+            raise HTTPException(status_code=400, detail=result.message)
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=f"Unknown operation: {operation}")
 ```
 
 ### Web界面架构
@@ -277,14 +557,17 @@ src/pdftool/api/
 
 #### Web界面路由 (router/web.py)
 - `GET /` - 功能选择主页面
-- `GET /merge` - PDF合并页面  
+- `GET /merge` - PDF合并页面
 - `GET /split` - PDF拆分页面
+- `GET /watermark` - PDF水印页面 ✅ NEW
 - `GET /info` - PDF信息页面
 
 #### API v1 端点 (router/pdf.py)
 - `POST /api/v1/pdf/merge` - PDF合并处理
-- `POST /api/v1/pdf/split` - PDF拆分处理  
+- `POST /api/v1/pdf/split` - PDF拆分处理
+- `POST /api/v1/pdf/watermark` - PDF水印处理 ✅ NEW
 - `POST /api/v1/pdf/info` - PDF信息提取
+- `GET /api/v1/pdf/services` - 服务发现端点 ✅ NEW
 - `GET /api/v1/pdf/formats` - 支持格式查询
 
 #### 系统监控端点 (router/health.py)
@@ -322,6 +605,31 @@ curl -X POST "http://localhost:8000/info" \
   -F "file=@document.pdf"
 ```
 
+#### PDF水印 ✅ NEW
+```bash
+# 文本水印
+curl -X POST "http://localhost:8000/api/v1/pdf/watermark" \
+  -F "file=@document.pdf" \
+  -F "watermark_type=text" \
+  -F "watermark_text=CONFIDENTIAL" \
+  -F "position=center" \
+  -F "opacity=0.3" \
+  -F "font_size=48" \
+  -F "font_color=#FF0000" \
+  -F "page_selection=all"
+
+# 图片水印
+curl -X POST "http://localhost:8000/api/v1/pdf/watermark" \
+  -F "file=@document.pdf" \
+  -F "watermark_type=image" \
+  -F "watermark_image=@logo.png" \
+  -F "position=bottom_right" \
+  -F "opacity=0.5" \
+  -F "image_scale=80" \
+  -F "page_selection=pages" \
+  -F "specific_pages=1,3,5"
+```
+
 ### 响应格式
 
 **文件下载响应**: 直接返回文件流
@@ -349,21 +657,28 @@ GUI应用 (`gui/main.py`) 提供友好的桌面体验：
 - **拖拽支持**: 文件拖拽到应用窗口
 - **进度指示**: 实时操作进度显示
 - **结果预览**: 操作完成后的结果展示
+- **水印功能**: 集成文本和图片水印操作 ✅ NEW
 
 #### 界面组件
 ```python
 class ModernPDFTool:
     """现代化PDF工具GUI"""
-    
+
     def __init__(self, root: tk.Tk):
         self.setup_main_window()    # 主窗口配置
         self.setup_styles()         # 样式设置
         self.create_widgets()       # 创建界面组件
-    
+
     # 功能标签页
     def create_merge_tab()          # PDF合并标签
-    def create_split_tab()          # PDF拆分标签  
+    def create_split_tab()          # PDF拆分标签
+    def create_watermark_tab()      # PDF水印标签 ✅ NEW
     def create_info_tab()           # PDF信息标签
+
+    # 水印功能方法 ✅ NEW
+    def add_watermark_to_pdf()      # 添加水印到PDF
+    def update_watermark_preview()  # 更新水印预览
+    def browse_watermark_image()    # 浏览水印图片
 ```
 
 #### 启动方式
