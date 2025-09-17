@@ -8,10 +8,10 @@ from pathlib import Path
 from typing import Any, List, Optional, Union
 from uuid import uuid4
 
-from .exceptions import PDFProcessingError
-from .interfaces import IPDFOperation
-from .models import OperationResult, PDFInfo
-from .operation_factory import PDFOperationFactory
+from ..common.exceptions import PDFProcessingError
+from ..common.interfaces import IPDFOperation
+from ..common.models import OperationResult, PDFInfo
+from .factory import PDFOperationFactory
 
 
 class PDFProcessor:

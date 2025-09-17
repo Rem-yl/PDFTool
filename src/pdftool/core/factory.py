@@ -5,7 +5,7 @@ Factory for creating and managing PDF operations
 from pathlib import Path
 from typing import Dict, Optional, Type
 
-from .interfaces import IPDFOperation, IPDFOperationFactory
+from ..common.interfaces import IPDFOperation, IPDFOperationFactory
 
 
 class PDFOperationFactory(IPDFOperationFactory):
@@ -35,10 +35,10 @@ class PDFOperationFactory(IPDFOperationFactory):
     def _register_default_operations(self) -> None:
         """Register default operations"""
         # Import here to avoid circular imports
-        from .operations.info import InfoOperation
-        from .operations.merge import MergeOperation
-        from .operations.split import SplitOperation
-        from .operations.watermark import WatermarkOperation
+        from ..domains.document.operations.info import InfoOperation
+        from ..domains.document.operations.merge import MergeOperation
+        from ..domains.document.operations.split import SplitOperation
+        from ..domains.document.operations.watermark import WatermarkOperation
 
         self.register_operation("merge", MergeOperation)
         self.register_operation("split", SplitOperation)

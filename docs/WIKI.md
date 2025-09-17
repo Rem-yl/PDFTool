@@ -1,2264 +1,2221 @@
-# PDFTool 项目架构详细文档
+# PDFTool 架构设计与开发指南
 
 ## 📋 目录
 
 - [项目概述](#项目概述)
-- [架构设计](#架构设计)
-- [目录结构](#目录结构)
-- [核心组件](#核心组件)
-- [数据模型](#数据模型)
-- [API 接口](#api-接口)
-- [GUI 应用](#gui-应用)
+- [架构设计理念](#架构设计理念)
+- [领域驱动架构](#领域驱动架构)
+- [设计模式与原则](#设计模式与原则)
+- [目录结构说明](#目录结构说明)
+- [核心组件详解](#核心组件详解)
+- [扩展性设计指导](#扩展性设计指导)
+- [开发最佳实践](#开发最佳实践)
+- [API接口设计](#api接口设计)
+- [插件系统架构](#插件系统架构)
 - [配置管理](#配置管理)
-- [开发工具](#开发工具)
+- [测试策略](#测试策略)
 - [部署指南](#部署指南)
-- [扩展开发](#扩展开发)
+- [未来演进规划](#未来演进规划)
 
 ---
 
 ## 🎯 项目概述
 
-**PDFTool** 是一个综合性的PDF文档处理工具，提供三种使用接口：
+**PDFTool** 是一个采用现代软件架构理念构建的PDF文档处理平台，经过三个主要演进阶段：
+
+### 演进历程
+1. **单体架构** → **插件式架构** → **领域驱动架构**
+2. **技术分层** → **功能分层** → **领域分层**
+3. **紧耦合** → **松耦合** → **零耦合**
 
 ### 核心功能
-- **PDF合并**: 将多个PDF文件合并为一个
-- **PDF拆分**: 按页面或范围拆分PDF文件
-- **PDF信息提取**: 获取PDF元数据和属性信息
-- **PDF水印**: 添加文本或图片水印，支持9个位置和透明度调节
+- **文档合并**: 智能合并多个PDF文件，支持自定义排序
+- **文档拆分**: 按页面、范围或书签拆分，支持批量处理
+- **信息提取**: 获取完整的PDF元数据、页面统计和属性信息
+- **水印处理**: 添加文本/图片水印，支持9个位置和透明度调节
 
-### 三种接口
-1. **桌面GUI应用** (`pdftool-gui`): 基于Tkinter的现代化桌面界面
-2. **Web API** (`pdftool-api`): FastAPI驱动的REST API服务
-3. **命令行CLI**: 直接调用核心功能的命令行接口
+### 用户接口
+- **Web接口** (FastAPI): 现代化的REST API服务
+- **命令行接口** (Click): 强大的CLI工具，支持所有核心功能
 
 ---
 
-## 🏗️ 架构设计
+## 🏗️ 架构设计理念
 
-### 设计原则
+### 设计哲学
 
-PDFTool采用**插件式架构模式** (PDF-3重构)，具有高度可扩展性：
+PDFTool的架构设计基于以下核心理念：
+
+#### 1. **领域驱动设计 (Domain-Driven Design)**
+```
+业务领域 → 代码结构 → 团队组织
+```
+- **按业务能力组织代码**，而非技术层次
+- **领域专家和开发者共同语言**，减少沟通成本
+- **聚合根和限界上下文**，清晰的业务边界
+
+#### 2. **插件化架构 (Plugin Architecture)**
+```
+核心引擎 + 可插拔组件 = 无限扩展性
+```
+- **策略模式**：每个PDF操作都是独立的策略
+- **工厂模式**：统一的操作创建和管理机制
+- **注册发现**：运行时动态注册新功能
+
+#### 3. **关注点分离 (Separation of Concerns)**
+```
+每个模块只关心自己的责任
+```
+- **单一职责**：每个类、函数都有明确的单一目的
+- **接口隔离**：依赖抽象而非具体实现
+- **依赖反转**：高层模块不依赖低层模块
+
+#### 4. **SOLID原则全面应用**
+- **S**ingle Responsibility: 单一职责原则
+- **O**pen/Closed: 开闭原则 - 对扩展开放，对修改封闭
+- **L**iskov Substitution: 里氏替换原则
+- **I**nterface Segregation: 接口隔离原则
+- **D**ependency Inversion: 依赖反转原则
+
+### 架构层次图
 
 ```
-┌─────────────────────────────────────────┐
-│           用户接口层 (UI Layer)            │
-├─────────────────┬───────────┬───────────┤
-│   GUI (Tkinter) │ Web API   │    CLI    │
-│                 │(FastAPI)  │           │
-└─────────────────┴───────────┴───────────┘
-┌─────────────────────────────────────────┐
-│         路由层 (Router Layer)           │
-├─────────────────────────────────────────┤
-│   Web Routes │ PDF API │ Health │ Docs │
-└─────────────────────────────────────────┘
-┌─────────────────────────────────────────┐
-│        中间件层 (Middleware Layer)        │
-├─────────────────────────────────────────┤
-│  CORS │ Error Handler │ Logging │ Auth  │
-└─────────────────────────────────────────┘
-┌─────────────────────────────────────────┐
-│      服务处理层 (Service Handler)        │
-├─────────────────────────────────────────┤
-│Watermark│Merge│Split│Info│ServiceRegistry│
-└─────────────────────────────────────────┘
-┌─────────────────────────────────────────┐
-│      策略引擎层 (Strategy Engine)        │
-├─────────────────────────────────────────┤
-│    PDFProcessor + OperationFactory      │
-└─────────────────────────────────────────┘
-┌─────────────────────────────────────────┐
-│        操作插件层 (Operations)           │
-├─────────────────────────────────────────┤
-│ WatermarkOp │ MergeOp │ SplitOp │ InfoOp │
-└─────────────────────────────────────────┘
-┌─────────────────────────────────────────┐
-│          核心层 (Core Layer)             │
-├─────────────────────────────────────────┤
-│         PDF引擎 (PyPDF2/Reportlab)       │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                   接口层 (Interfaces)                    │
+├─────────────────────┬─────────────────┬─────────────────┤
+│   Web接口 (FastAPI)  │  CLI接口 (Click) │   插件接口       │
+│   • REST API        │  • 命令行工具    │   • 热加载       │
+│   • Web UI          │  • 批量处理      │   • 动态注册     │
+└─────────────────────┴─────────────────┴─────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                   应用层 (Application)                   │
+├─────────────────────────────────────────────────────────┤
+│  • 服务管理器 (ServiceManager)                          │
+│  • 工作流编排 (Workflow Orchestration)                  │
+│  • 请求验证和转换 (Request Validation & Transformation)  │
+└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                   领域层 (Domain)                       │
+├─────────────────────┬─────────────────┬─────────────────┤
+│    文档域            │    安全域         │    压缩域       │
+│   • 合并操作         │   • 加密解密      │   • 文件压缩    │
+│   • 拆分操作         │   • 数字签名      │   • 优化处理    │
+│   • 水印操作         │   • 权限控制      │   • 格式转换    │
+│   • 信息提取         │                  │                │
+└─────────────────────┴─────────────────┴─────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                   基础设施层 (Infrastructure)             │
+├─────────────────────┬─────────────────┬─────────────────┤
+│    核心引擎          │    公共组件       │    外部集成     │
+│   • PDF处理器        │   • 异常处理      │   • 文件存储    │
+│   • 操作工厂         │   • 日志记录      │   • 缓存系统    │
+│   • 组件注册表       │   • 配置管理      │   • 监控告警    │
+└─────────────────────┴─────────────────┴─────────────────┘
 ```
+
+---
+
+## 🌐 领域驱动架构
+
+### 领域模型设计
+
+#### 1. **文档处理域 (Document Domain)**
+```python
+# 领域聚合根
+class DocumentProcessor:
+    """文档处理聚合根"""
+
+    def merge_documents(self, files: List[Document], options: MergeOptions) -> Document:
+        """合并文档业务逻辑"""
+
+    def split_document(self, document: Document, options: SplitOptions) -> List[Document]:
+        """拆分文档业务逻辑"""
+```
+
+#### 2. **值对象设计 (Value Objects)**
+```python
+@dataclass(frozen=True)
+class WatermarkPosition:
+    """水印位置值对象"""
+    x: float
+    y: float
+    alignment: WatermarkAlignment
+
+@dataclass(frozen=True)
+class PageRange:
+    """页面范围值对象"""
+    start: int
+    end: int
+
+    def __post_init__(self):
+        if self.start > self.end:
+            raise ValueError("Start page must be <= end page")
+```
+
+#### 3. **领域服务 (Domain Services)**
+```python
+class DocumentMergeService:
+    """文档合并领域服务"""
+
+    def merge_with_bookmarks(self, documents: List[Document]) -> Document:
+        """包含书签的智能合并"""
+
+class WatermarkService:
+    """水印处理领域服务"""
+
+    def apply_batch_watermark(self, documents: List[Document], watermark: Watermark) -> List[Document]:
+        """批量应用水印"""
+```
+
+### 限界上下文 (Bounded Contexts)
+
+```
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│   文档处理上下文   │  │   安全管理上下文   │  │   存储管理上下文   │
+│ Document Context │  │ Security Context │  │ Storage Context │
+├─────────────────┤  ├─────────────────┤  ├─────────────────┤
+│ • 文档合并       │  │ • 权限验证       │  │ • 文件存储       │
+│ • 文档拆分       │  │ • 加密解密       │  │ • 缓存管理       │
+│ • 水印处理       │  │ • 数字签名       │  │ • 备份恢复       │
+│ • 信息提取       │  │ • 访问控制       │  │ • 清理策略       │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+```
+
+---
+
+## 🔧 设计模式与原则
 
 ### 核心设计模式
 
-1. **策略模式**: PDF操作通过可插拔的策略实现
-2. **工厂模式**: OperationFactory管理操作类的创建和注册
-3. **服务注册模式**: API服务可动态注册和发现
-4. **依赖注入**: 通过ServiceManager统一管理依赖
-5. **接口隔离**: 清晰的接口定义实现解耦
-6. **单一职责**: 每个操作类专注于单一功能
-7. **开闭原则**: 对扩展开放，对修改封闭
-
-### 架构优势
-
-- **高扩展性**: 新功能通过插件方式添加，无需修改核心代码
-- **解耦设计**: 各层职责单一，便于测试和维护
-- **策略引擎**: 支持动态选择和注册PDF操作
-- **服务注册**: API服务可以运行时注册和发现
-- **向后兼容**: 现有功能保持不变，平滑升级
-
----
-
-## 📁 目录结构
-
-```
-pdftool/
-├── 📁 src/pdftool/              # 主要源码目录
-│   ├── 📁 core/                 # 核心业务逻辑
-│   │   ├── interfaces.py        # 🔌 核心接口定义
-│   │   ├── operation_factory.py # 🏭 操作工厂
-│   │   ├── pdf_processor.py     # ⚙️ PDF处理器(新架构)
-│   │   ├── pdf_operations.py    # 📋 PDF操作引擎(兼容)
-│   │   ├── models.py            # 📊 数据模型定义
-│   │   ├── exceptions.py        # ⚠️ 自定义异常类
-│   │   └── 📁 operations/       # 🔌 操作插件
-│   │       ├── watermark.py     # 💧 水印操作
-│   │       ├── merge.py         # 📄 合并操作
-│   │       ├── split.py         # ✂️ 拆分操作
-│   │       └── info.py          # ℹ️ 信息提取操作
-│   ├── 📁 api/                  # Web API 接口
-│   │   ├── main.py              # 🌐 FastAPI应用主文件
-│   │   ├── app.py               # 🏗️ 应用工厂
-│   │   ├── interfaces.py        # 🔌 API接口定义
-│   │   ├── service_manager.py   # 👔 服务管理器
-│   │   ├── service_registry.py  # 📋 服务注册表
-│   │   ├── dependencies.py      # 🔗 依赖注入
-│   │   ├── 📁 handlers/         # 🎯 服务处理器
-│   │   │   ├── watermark.py     # 💧 水印服务处理器
-│   │   │   ├── merge.py         # 📄 合并服务处理器
-│   │   │   ├── split.py         # ✂️ 拆分服务处理器
-│   │   │   └── info.py          # ℹ️ 信息服务处理器
-│   │   ├── 📁 routers/          # 🛣️ 路由模块
-│   │   │   ├── web.py           # 🌐 Web界面路由
-│   │   │   ├── pdf.py           # 📄 PDF处理API路由
-│   │   │   ├── health.py        # ❤️ 健康检查路由
-│   │   │   └── docs.py          # 📚 API文档路由
-│   │   ├── 📁 middleware/       # 🔧 中间件层
-│   │   ├── 📁 schemas/          # 📊 数据模式定义
-│   │   └── 📁 templates/        # 🎨 前端模板
-│   ├── 📁 gui/                  # 桌面GUI应用
-│   │   └── main.py              # 🖥️ Tkinter GUI主程序
-│   ├── 📁 config/               # 配置管理
-│   │   └── settings.py          # ⚙️ 应用配置类
-│   └── 📁 utils/                # 工具模块
-│       ├── logging.py           # 📝 日志配置
-│       └── validators.py        # ✅ 输入验证工具
-├── 📁 tests/                    # 测试代码
-│   └── test_pdf_operations.py   # 🧪 核心功能测试
-├── 📁 docs/                     # 项目文档
-│   ├── PDF-3_REFACTOR.md        # 📋 重构文档
-│   ├── WIKI.md                  # 📖 架构详细文档
-│   └── TODO.md                  # 📝 开发计划
-├── 📄 pyproject.toml            # 📦 项目配置和依赖
-├── 📄 Makefile                  # 🔧 开发命令集合
-├── 📄 CLAUDE.md                 # 🤖 Claude Code 指南
-├── 📄 README.md                 # 📖 项目说明文档
-└── 📄 requirements.txt          # 📋 Python依赖列表
-```
-
----
-
-## 🔧 核心组件
-
-### 1. 核心接口层 (`core/interfaces.py`)
-
-**统一接口定义**，为插件式架构提供标准化接口：
-
+#### 1. **策略模式 (Strategy Pattern)**
 ```python
 class IPDFOperation(ABC):
-    """PDF操作接口"""
+    """PDF操作策略接口"""
 
     @abstractmethod
     def execute(self, input_file: Path, options: Any) -> OperationResult:
-        """执行PDF操作"""
-        pass
-
-    @property
-    @abstractmethod
-    def operation_name(self) -> str:
-        """操作名称"""
-        pass
-
-class IServiceHandler(ABC):
-    """服务处理器接口"""
+        """执行策略"""
 
     @abstractmethod
-    async def handle(self, files: List[UploadFile], request: Any) -> OperationResult:
-        """处理API请求"""
-        pass
+    def validate_options(self, options: Any) -> bool:
+        """验证参数"""
 
-    @property
-    @abstractmethod
-    def service_name(self) -> str:
-        """服务名称"""
-        pass
+# 具体策略实现
+class MergeOperation(BasePDFOperation):
+    """合并策略实现"""
+
+class SplitOperation(BasePDFOperation):
+    """拆分策略实现"""
 ```
 
-### 2. PDF处理器 (`core/pdf_processor.py`)
-
-**新架构核心处理器**，基于策略模式的PDF操作引擎：
-
+#### 2. **工厂模式 (Factory Pattern)**
 ```python
-class PDFProcessor:
-    """基于策略模式的PDF处理器"""
-
-    def __init__(self, temp_dir: Optional[Path] = None):
-        self.temp_dir = temp_dir or Path("temp")
-        self.operation_factory = OperationFactory()
-
-    def process(self, operation_name: str, input_file: Path, options: Any) -> OperationResult:
-        """执行指定操作"""
-        operation = self.operation_factory.create_operation(operation_name)
-        return operation.execute(input_file, options)
-
-    def register_operation(self, name: str, operation_class: Type[IPDFOperation]) -> None:
-        """注册新操作"""
-        self.operation_factory.register(name, operation_class)
-```
-
-### 3. 操作工厂 (`core/operation_factory.py`)
-
-**工厂模式实现**，管理PDF操作类的创建和注册：
-
-```python
-class OperationFactory:
-    """PDF操作工厂类"""
+class PDFOperationFactory:
+    """PDF操作工厂"""
 
     def __init__(self):
         self._operations: Dict[str, Type[IPDFOperation]] = {}
-        self._register_builtin_operations()
+        self._register_default_operations()
 
-    def register(self, name: str, operation_class: Type[IPDFOperation]) -> None:
-        """注册操作类"""
+    def create_operation(self, operation_type: str) -> IPDFOperation:
+        """创建操作实例"""
+        if operation_type not in self._operations:
+            raise ValueError(f"Unknown operation: {operation_type}")
+        return self._operations[operation_type]()
+
+    def register_operation(self, name: str, operation_class: Type[IPDFOperation]):
+        """注册新操作"""
+        self._operations[name] = operation_class
+```
+
+#### 3. **观察者模式 (Observer Pattern)**
+```python
+class OperationEventManager:
+    """操作事件管理器"""
+
+    def __init__(self):
+        self._observers: List[OperationObserver] = []
+
+    def attach(self, observer: OperationObserver):
+        """添加观察者"""
+        self._observers.append(observer)
+
+    def notify(self, event: OperationEvent):
+        """通知所有观察者"""
+        for observer in self._observers:
+            observer.handle_event(event)
+```
+
+#### 4. **命令模式 (Command Pattern)**
+```python
+class PDFCommand(ABC):
+    """PDF命令抽象基类"""
+
+    @abstractmethod
+    def execute(self) -> OperationResult:
+        """执行命令"""
+
+    @abstractmethod
+    def undo(self) -> bool:
+        """撤销命令"""
+
+class MergeCommand(PDFCommand):
+    """合并命令"""
+
+    def __init__(self, files: List[Path], options: MergeOptions):
+        self.files = files
+        self.options = options
+        self.result_file: Optional[Path] = None
+
+    def execute(self) -> OperationResult:
+        # 执行合并逻辑
+        pass
+
+    def undo(self) -> bool:
+        # 撤销合并（删除结果文件）
+        pass
+```
+
+### SOLID原则实践
+
+#### 1. **单一职责原则 (SRP)**
+```python
+# ❌ 违反SRP - 一个类做太多事情
+class PDFProcessor:
+    def merge_pdfs(self): pass
+    def split_pdf(self): pass
+    def add_watermark(self): pass
+    def validate_files(self): pass
+    def log_operations(self): pass
+    def send_notifications(self): pass
+
+# ✅ 遵循SRP - 每个类只有一个职责
+class PDFProcessor:
+    """只负责协调PDF操作"""
+
+class FileValidator:
+    """只负责文件验证"""
+
+class OperationLogger:
+    """只负责操作日志"""
+
+class NotificationService:
+    """只负责发送通知"""
+```
+
+#### 2. **开闭原则 (OCP)**
+```python
+# ✅ 对扩展开放，对修改封闭
+class PDFOperationFactory:
+    def register_operation(self, name: str, operation_class: Type[IPDFOperation]):
+        """新操作通过注册方式添加，无需修改现有代码"""
         self._operations[name] = operation_class
 
-    def create_operation(self, name: str) -> IPDFOperation:
+# 添加新功能只需要：
+class CompressOperation(BasePDFOperation):
+    """新的压缩操作"""
+
+    def execute(self, input_file: Path, options: CompressOptions) -> OperationResult:
+        # 实现压缩逻辑
+        pass
+
+# 注册新操作
+factory.register_operation("compress", CompressOperation)
+```
+
+#### 3. **依赖反转原则 (DIP)**
+```python
+# ✅ 依赖抽象而非具体实现
+class DocumentService:
+    def __init__(self,
+                 storage: IStorageService,  # 抽象存储接口
+                 logger: ILogger,          # 抽象日志接口
+                 validator: IValidator):   # 抽象验证接口
+        self._storage = storage
+        self._logger = logger
+        self._validator = validator
+
+# 具体实现可以替换
+class FileStorageService(IStorageService): pass
+class S3StorageService(IStorageService): pass
+class DatabaseStorageService(IStorageService): pass
+```
+
+---
+
+## 📁 目录结构说明
+
+### 最终简洁架构
+
+```
+src/pdftool/
+├── 📁 common/                    # 公共组件层 - 零依赖
+│   ├── __init__.py               # 公共组件导出
+│   ├── interfaces.py             # 🔌 核心接口定义
+│   ├── exceptions.py             # ⚠️ 异常层次结构
+│   ├── models.py                 # 📊 数据模型定义
+│   └── 📁 utils/                 # 🛠️ 工具函数
+│       ├── logging.py            # 📝 结构化日志
+│       └── validators.py         # ✅ 输入验证
+├── 📁 core/                      # 核心引擎层 - 只依赖common
+│   ├── __init__.py               # 核心组件导出
+│   ├── processor.py              # ⚙️ PDF处理协调器
+│   ├── factory.py                # 🏭 操作工厂
+│   └── registry.py               # 📋 组件注册表
+├── 📁 domains/                   # 领域层 - 按业务能力组织
+│   ├── __init__.py               # 领域层导出
+│   ├── 📁 document/              # 📄 文档处理域
+│   │   ├── __init__.py           # 文档域导出
+│   │   ├── models.py             # 📊 文档领域模型
+│   │   ├── validators.py         # ✅ 文档验证逻辑
+│   │   └── 📁 operations/        # 🔌 文档操作实现
+│   │       ├── __init__.py       # 操作导出
+│   │       ├── merge.py          # 📄 智能合并操作
+│   │       ├── split.py          # ✂️ 灵活拆分操作
+│   │       ├── info.py           # ℹ️ 信息提取操作
+│   │       └── watermark.py      # 💧 水印处理操作
+│   └── 📁 future_domains/        # 🚀 未来扩展域
+│       ├── compression/          # 📦 压缩处理域
+│       └── security/             # 🔒 安全管理域
+├── 📁 interfaces/                # 接口层 - 用户交互
+│   ├── __init__.py               # 接口层导出
+│   ├── 📁 web/                   # 🌐 Web接口 (FastAPI)
+│   │   ├── __init__.py           # Web接口导出
+│   │   ├── application.py        # 🏗️ FastAPI应用
+│   │   ├── main.py               # 🚀 启动入口
+│   │   ├── dependencies.py       # 🔗 依赖注入配置
+│   │   ├── service_manager.py    # 👔 服务管理器
+│   │   ├── 📁 handlers/          # 🎯 请求处理器
+│   │   ├── 📁 routers/           # 🛣️ API路由
+│   │   ├── 📁 middleware/        # 🔧 中间件组件
+│   │   ├── 📁 schemas/           # 📊 请求/响应模式
+│   │   └── 📁 templates/         # 🎨 Web界面模板
+│   └── 📁 cli/                   # 💻 命令行接口 (Click)
+│       ├── __init__.py           # CLI接口导出
+│       ├── commands.py           # 📝 命令定义
+│       └── main.py               # 🚀 CLI入口
+├── 📁 plugins/                   # 插件系统 - 动态扩展
+│   ├── __init__.py               # 插件系统导出
+│   ├── base.py                   # 🔌 插件基类
+│   ├── loader.py                 # 📥 插件加载器
+│   └── registry.py               # 📋 插件注册表
+└── 📁 config/                    # 配置管理
+    ├── __init__.py               # 配置导出
+    ├── settings.py               # ⚙️ 应用配置
+    └── 📁 environments/          # 🌍 环境配置
+        ├── development.py        # 🛠️ 开发环境
+        ├── production.py         # 🚀 生产环境
+        └── testing.py            # 🧪 测试环境
+```
+
+### 依赖关系图
+
+```mermaid
+graph TD
+    A[interfaces/] --> B[core/]
+    A --> C[domains/]
+    A --> D[common/]
+    B --> D
+    C --> D
+    E[plugins/] --> B
+    E --> C
+    E --> D
+    F[config/] --> D
+
+    style D fill:#e1f5fe
+    style B fill:#f3e5f5
+    style C fill:#e8f5e8
+    style A fill:#fff3e0
+    style E fill:#fce4ec
+    style F fill:#f1f8e9
+```
+
+### 模块职责说明
+
+#### **common/ - 公共组件层**
+- **职责**: 提供系统级共享组件，零外部依赖
+- **包含**: 接口定义、异常类型、数据模型、工具函数
+- **原则**: 纯净、稳定、可复用
+
+#### **core/ - 核心引擎层**
+- **职责**: PDF处理的核心协调逻辑
+- **包含**: 处理器、工厂、注册表
+- **原则**: 高效、稳定、可扩展
+
+#### **domains/ - 领域层**
+- **职责**: 按业务能力组织的领域逻辑
+- **包含**: 各个业务域的操作实现
+- **原则**: 业务聚合、高内聚、低耦合
+
+#### **interfaces/ - 接口层**
+- **职责**: 用户交互和外部集成
+- **包含**: Web API、CLI工具
+- **原则**: 用户友好、协议标准、可扩展
+
+#### **plugins/ - 插件系统**
+- **职责**: 动态扩展和插件管理
+- **包含**: 插件基类、加载器、注册表
+- **原则**: 热插拔、动态加载、隔离运行
+
+---
+
+## 🧩 核心组件详解
+
+### 1. PDF处理器 (PDFProcessor)
+
+```python
+class PDFProcessor:
+    """PDF处理协调器 - 系统的核心"""
+
+    def __init__(self, temp_dir: Optional[Path] = None):
+        self.temp_dir = temp_dir or Path("temp")
+        self.operation_factory = PDFOperationFactory(temp_dir=self.temp_dir)
+        self.event_manager = OperationEventManager()
+
+    def execute_operation(self,
+                         operation_type: str,
+                         input_data: Any,
+                         options: Any) -> OperationResult:
+        """执行PDF操作的统一入口"""
+
+        # 1. 创建操作实例
+        operation = self.operation_factory.create_operation(operation_type)
+
+        # 2. 验证参数
+        if not operation.validate_options(options):
+            raise PDFValidationError("Invalid operation options")
+
+        # 3. 发送开始事件
+        self.event_manager.notify(OperationStartEvent(operation_type, input_data))
+
+        # 4. 执行操作
+        try:
+            result = operation.execute(input_data, options)
+            self.event_manager.notify(OperationSuccessEvent(operation_type, result))
+            return result
+        except Exception as e:
+            self.event_manager.notify(OperationErrorEvent(operation_type, e))
+            raise
+```
+
+### 2. 操作工厂 (PDFOperationFactory)
+
+```python
+class PDFOperationFactory:
+    """PDF操作工厂 - 负责操作的创建和管理"""
+
+    def __init__(self, temp_dir: Optional[Path] = None):
+        self.temp_dir = temp_dir or Path("temp")
+        self._operations: Dict[str, Type[IPDFOperation]] = {}
+        self._operation_metadata: Dict[str, OperationMetadata] = {}
+        self._register_default_operations()
+
+    def register_operation(self,
+                          name: str,
+                          operation_class: Type[IPDFOperation],
+                          metadata: Optional[OperationMetadata] = None) -> None:
+        """注册操作类"""
+
+        # 验证操作类
+        if not issubclass(operation_class, IPDFOperation):
+            raise ValueError(f"Operation class must implement IPDFOperation")
+
+        # 注册操作
+        self._operations[name] = operation_class
+        self._operation_metadata[name] = metadata or OperationMetadata(
+            name=name,
+            description=f"{name} operation",
+            version="1.0.0",
+            author="PDFTool",
+            category="document"
+        )
+
+    def create_operation(self, operation_type: str) -> IPDFOperation:
         """创建操作实例"""
-        if name not in self._operations:
-            raise ValueError(f"Unknown operation: {name}")
-        return self._operations[name]()
+        if operation_type not in self._operations:
+            raise ValueError(f"Unknown operation type: {operation_type}")
+
+        operation_class = self._operations[operation_type]
+        return operation_class(temp_dir=self.temp_dir)
 
     def list_operations(self) -> List[str]:
         """列出所有可用操作"""
         return list(self._operations.keys())
+
+    def get_operation_metadata(self, operation_type: str) -> OperationMetadata:
+        """获取操作元数据"""
+        return self._operation_metadata.get(operation_type)
 ```
 
-### 4. 操作插件层 (`core/operations/`)
-
-**独立操作类**，每个PDF功能一个专用类：
-
-```python
-# core/operations/watermark.py
-class WatermarkOperation(IPDFOperation):
-    """水印操作插件"""
-
-    @property
-    def operation_name(self) -> str:
-        return "watermark"
-
-    def execute(self, input_file: Path, options: WatermarkOptions) -> OperationResult:
-        """执行水印添加"""
-        # 具体水印处理逻辑
-        pass
-
-# core/operations/merge.py
-class MergeOperation(IPDFOperation):
-    """合并操作插件"""
-
-    @property
-    def operation_name(self) -> str:
-        return "merge"
-
-    def execute(self, input_files: List[Path], options: MergeOptions) -> OperationResult:
-        """执行PDF合并"""
-        # 具体合并处理逻辑
-        pass
-```
-
-### 5. PDF处理器工具方法
-
-**便捷方法集合**，提供常用的工具功能：
-
-```python
-class PDFProcessor:
-    """PDF处理器 - 包含便捷工具方法"""
-
-    def create_zip_archive(self, files: List[Path], output_path: Optional[Path] = None) -> Path:
-        """创建ZIP归档文件"""
-        output_path = output_path or self.temp_dir / f"archive_{uuid4().hex}.zip"
-
-        with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for file_path in files:
-                zf.write(file_path, file_path.name)
-        return output_path
-
-    def cleanup_temp_files(self, files: List[Path]) -> None:
-        """清理临时文件"""
-        for file_path in files:
-            try:
-                if file_path.is_file():
-                    file_path.unlink()
-                elif file_path.is_dir():
-                    shutil.rmtree(file_path)
-            except Exception as e:
-                logger.warning(f"Failed to cleanup {file_path}: {str(e)}")
-
-    # 便捷方法 - 直接调用对应操作
-    def merge_pdfs(self, files: List[Path], options: Any) -> OperationResult:
-        return self.execute_operation("merge", files, options)
-
-    def split_pdf(self, file_path: Path, options: Any) -> OperationResult:
-        return self.execute_operation("split", file_path, options)
-
-    def add_watermark(self, file_path: Path, options: Any) -> OperationResult:
-        return self.execute_operation("watermark", file_path, options)
-
-    def get_pdf_info(self, file_path: Path) -> PDFInfo:
-        return self.execute_operation("info", file_path, None)
-```
-
-**纯插件架构特点**:
-- **零遗留代码**：完全移除单体PDFOperations类
-- **强制现代化**：只能使用插件式架构
-- **插件式扩展**：新功能通过实现接口添加
-- **动态注册**：运行时注册新操作类
-- **策略模式**：灵活选择操作实现
-- **职责分离**：每个组件专注单一功能
-
-### 2. 异常处理系统 (`core/exceptions.py`)
-
-**层次化异常设计**:
-
-```python
-PDFToolError (基础异常)
-├── PDFValidationError    # 文件验证错误
-├── PDFProcessingError    # 处理过程错误
-└── PDFFileNotFoundError  # 文件未找到错误
-```
-
-### 3. 配置系统 (`config/settings.py`)
-
-**环境变量驱动的配置系统**:
-
-```python
-class Settings(BaseSettings):
-    # 应用配置
-    app_name: str = "PDFTool"
-    version: str = "1.0.0"
-    debug: bool = False
-    
-    # 文件处理
-    temp_dir: Path = Path("temp")
-    max_file_size: int = 100 * 1024 * 1024  # 100MB
-    
-    # API设置
-    api_host: str = "0.0.0.0"
-    api_port: int = 8000
-    
-    # 日志配置
-    log_level: str = "INFO"
-```
-
-**环境变量前缀**: 所有配置都支持 `PDFTOOL_` 前缀的环境变量覆盖
-
----
-
-## 📊 数据模型
-
-### 核心数据结构 (`core/models.py`)
-
-```python
-@dataclass
-class PDFInfo:
-    """PDF元数据信息"""
-    pages: int                           # 页数
-    title: Optional[str]                # 标题
-    author: Optional[str]               # 作者
-    creation_date: Optional[datetime]   # 创建日期
-    file_size: Optional[int]            # 文件大小
-    file_path: Optional[Path]           # 文件路径
-
-@dataclass  
-class SplitOptions:
-    """PDF拆分选项"""
-    mode: SplitMode                     # 拆分模式
-    start_page: Optional[int]           # 起始页
-    end_page: Optional[int]             # 结束页
-    output_dir: Optional[Path]          # 输出目录
-    filename_prefix: Optional[str]      # 文件名前缀
-
-@dataclass
-class MergeOptions:
-    """PDF合并选项"""
-    output_file: Optional[Path]         # 输出文件
-    preserve_bookmarks: bool = True     # 保留书签
-    preserve_metadata: bool = True      # 保留元数据
-
-@dataclass
-class OperationResult:
-    """操作结果标准化返回"""
-    success: bool                       # 是否成功
-    message: str                        # 结果消息
-    output_files: List[Path]            # 输出文件列表
-    details: Optional[str]              # 详细信息
-```
-
-### 枚举类型
-
-```python
-class SplitMode(Enum):
-    """PDF拆分模式"""
-    ALL_PAGES = "all"     # 每页单独拆分
-    PAGE_RANGE = "range"  # 指定页面范围
-```
-
----
-
-## 🌐 API 接口架构
-
-### 插件式API架构
-
-基于**服务注册模式**的现代化API架构设计：
-
-```
-src/pdftool/api/
-├── 📁 app.py                    # 🏗️ FastAPI应用工厂
-├── 📁 main.py                   # 🚀 应用入口点和启动器
-├── 📁 interfaces.py             # 🔌 API服务接口定义
-├── 📁 service_manager.py        # 👔 服务管理器
-├── 📁 service_registry.py       # 📋 服务注册表
-├── 📁 handlers/                 # 🎯 服务处理器 (NEW)
-│   ├── watermark.py             # 💧 水印服务处理器
-│   ├── merge.py                 # 📄 合并服务处理器
-│   ├── split.py                 # ✂️ 拆分服务处理器
-│   └── info.py                  # ℹ️ 信息服务处理器
-├── 📁 routers/                  # 🛣️ 路由模块 (UPDATED)
-│   ├── web.py                   # 🌐 Web界面路由
-│   ├── pdf.py                   # 📄 统一PDF API路由 (v1)
-│   ├── health.py                # ❤️ 健康检查路由
-│   └── docs.py                  # 📚 API文档路由
-├── 📁 middleware/               # 🔧 中间件层
-│   ├── cors.py                  # 🌍 跨域处理
-│   ├── error_handler.py         # ⚠️ 全局错误处理
-│   └── logging.py               # 📝 请求日志记录
-├── 📁 schemas/                  # 📊 数据模式定义
-│   ├── requests.py              # 📥 请求模型
-│   ├── responses.py             # 📤 响应模型
-│   └── models.py                # 📋 数据传输对象
-├── 📁 dependencies.py           # 🔗 依赖注入
-├── 📁 templates/                # 🎨 前端模板 (UPDATED)
-│   ├── base.html                # 🏗️ 基础模板
-│   ├── index.html               # 🏠 功能选择首页
-│   ├── merge.html               # 📄 PDF合并页面
-│   ├── split.html               # ✂️ PDF拆分页面
-│   ├── watermark.html           # 💧 PDF水印页面 (NEW)
-│   ├── info.html                # ℹ️ PDF信息页面
-│   └── static/                  # 📁 静态资源
-│       ├── css/                 # 🎨 样式文件
-│       └── js/                  # ⚡ JavaScript
-└── 📁 utils/                    # 🛠️ API工具函数
-```
-
-### 新架构核心组件
-
-#### 1. 服务管理器 (`api/service_manager.py`)
-
-**统一服务管理**，负责服务的注册、发现和调用：
+### 3. 服务管理器 (ServiceManager)
 
 ```python
 class ServiceManager:
-    """API服务管理器"""
+    """服务管理器 - Web API的核心协调器"""
 
-    def __init__(self):
-        self.registry = ServiceRegistry()
-        self._register_builtin_services()
+    def __init__(self, pdf_processor: PDFProcessor):
+        self.pdf_processor = pdf_processor
+        self.service_registry = ServiceRegistry(pdf_processor)
+        self.metrics_collector = MetricsCollector()
 
-    def register_service(self, name: str, handler_class: Type[IServiceHandler]) -> None:
-        """注册服务处理器"""
-        self.registry.register(name, handler_class)
+    async def handle_request(self,
+                           service_name: str,
+                           files: List[UploadFile],
+                           request_data: BaseModel) -> OperationResult:
+        """处理API请求的统一入口"""
 
-    async def handle_request(self, service_name: str, files: List[UploadFile],
-                           request: Any) -> OperationResult:
-        """处理API请求"""
-        handler = self.registry.get_handler(service_name)
-        return await handler.handle(files, request)
+        # 1. 获取服务处理器
+        handler = self.service_registry.get_handler(service_name)
 
-    def list_services(self) -> List[str]:
-        """列出所有可用服务"""
-        return self.registry.list_services()
-```
+        # 2. 收集指标
+        start_time = time.time()
 
-#### 2. 服务处理器 (`api/handlers/`)
-
-**专用处理器**，每个PDF功能对应一个API服务处理器：
-
-```python
-# api/handlers/watermark.py
-class WatermarkServiceHandler(IServiceHandler):
-    """水印服务处理器"""
-
-    @property
-    def service_name(self) -> str:
-        return "watermark"
-
-    async def handle(self, files: List[UploadFile],
-                    request: WatermarkRequest) -> OperationResult:
-        """处理水印添加请求"""
-        # 验证请求参数
-        # 调用核心水印操作
-        # 返回结果
-        pass
-
-# api/handlers/merge.py
-class MergeServiceHandler(IServiceHandler):
-    """合并服务处理器"""
-
-    @property
-    def service_name(self) -> str:
-        return "merge"
-
-    async def handle(self, files: List[UploadFile],
-                    request: MergeRequest) -> OperationResult:
-        """处理PDF合并请求"""
-        # 合并处理逻辑
-        pass
-```
-
-#### 3. 统一PDF路由 (`api/routers/pdf.py`)
-
-**版本化API端点**，所有PDF操作通过统一路由：
-
-```python
-@router.post("/api/v1/pdf/{operation}")
-async def handle_pdf_operation(
-    operation: str,
-    files: List[UploadFile] = File(...),
-    request_data: Dict[str, Any] = Depends(parse_form_data),
-    service_manager: ServiceManager = Depends(get_service_manager)
-):
-    """统一PDF操作处理端点"""
-    try:
-        result = await service_manager.handle_request(operation, files, request_data)
-
-        if result.success:
-            return FileResponse(result.output_files[0])
-        else:
-            raise HTTPException(status_code=400, detail=result.message)
-
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=f"Unknown operation: {operation}")
-```
-
-### Web界面架构
-
-**功能选择式用户体验**：
-
-```
-首页 (/) 
-├── 🎯 功能选择卡片界面
-│   ├── 📄 PDF合并 → /merge
-│   ├── ✂️ PDF拆分 → /split  
-│   └── ℹ️ PDF信息 → /info
-└── 🎨 各功能独立页面
-    ├── 专用UI界面设计
-    ├── 拖拽文件上传区域
-    ├── 智能参数配置选项
-    └── 实时结果显示区域
-```
-
-### API 端点系统
-
-#### Web界面路由 (router/web.py)
-- `GET /` - 功能选择主页面
-- `GET /merge` - PDF合并页面
-- `GET /split` - PDF拆分页面
-- `GET /watermark` - PDF水印页面 ✅ NEW
-- `GET /info` - PDF信息页面
-
-#### API v1 端点 (router/pdf.py)
-- `POST /api/v1/pdf/merge` - PDF合并处理
-- `POST /api/v1/pdf/split` - PDF拆分处理
-- `POST /api/v1/pdf/watermark` - PDF水印处理 ✅ NEW
-- `POST /api/v1/pdf/info` - PDF信息提取
-- `GET /api/v1/pdf/services` - 服务发现端点 ✅ NEW
-- `GET /api/v1/pdf/formats` - 支持格式查询
-
-#### 系统监控端点 (router/health.py)
-- `GET /health` - 健康检查
-- `GET /health/ping` - 连通性检查
-
-#### API文档端点 (router/docs.py)
-- `GET /api/version` - API版本信息
-- `GET /api/endpoints` - 端点列表
-- `GET /api/status` - 系统状态
-- `GET /api/docs` - Swagger文档
-- `GET /api/redoc` - ReDoc文档
-
-### API 请求示例
-
-#### PDF合并
-```bash
-curl -X POST "http://localhost:8000/merge" \
-  -F "files=@file1.pdf" \
-  -F "files=@file2.pdf"
-```
-
-#### PDF拆分
-```bash  
-curl -X POST "http://localhost:8000/split" \
-  -F "file=@document.pdf" \
-  -F "mode=range" \
-  -F "start_page=1" \
-  -F "end_page=5"
-```
-
-#### PDF信息
-```bash
-curl -X POST "http://localhost:8000/info" \
-  -F "file=@document.pdf"
-```
-
-#### PDF水印 ✅ NEW
-```bash
-# 文本水印
-curl -X POST "http://localhost:8000/api/v1/pdf/watermark" \
-  -F "file=@document.pdf" \
-  -F "watermark_type=text" \
-  -F "watermark_text=CONFIDENTIAL" \
-  -F "position=center" \
-  -F "opacity=0.3" \
-  -F "font_size=48" \
-  -F "font_color=#FF0000" \
-  -F "page_selection=all"
-
-# 图片水印
-curl -X POST "http://localhost:8000/api/v1/pdf/watermark" \
-  -F "file=@document.pdf" \
-  -F "watermark_type=image" \
-  -F "watermark_image=@logo.png" \
-  -F "position=bottom_right" \
-  -F "opacity=0.5" \
-  -F "image_scale=80" \
-  -F "page_selection=pages" \
-  -F "specific_pages=1,3,5"
-```
-
-### 响应格式
-
-**文件下载响应**: 直接返回文件流
-**信息查询响应**: JSON格式
-```json
-{
-  "pages": 10,
-  "title": "示例文档", 
-  "author": "作者姓名",
-  "creation_date": "2024-01-01T00:00:00",
-  "file_size": 1048576
-}
-```
-
----
-
-## 🖥️ GUI 应用
-
-### Tkinter现代化界面
-
-GUI应用 (`gui/main.py`) 提供友好的桌面体验：
-
-#### 主要特性
-- **标签页界面**: 功能分离，操作直观
-- **拖拽支持**: 文件拖拽到应用窗口
-- **进度指示**: 实时操作进度显示
-- **结果预览**: 操作完成后的结果展示
-- **水印功能**: 集成文本和图片水印操作 ✅ NEW
-
-#### 界面组件
-```python
-class ModernPDFTool:
-    """现代化PDF工具GUI"""
-
-    def __init__(self, root: tk.Tk):
-        self.setup_main_window()    # 主窗口配置
-        self.setup_styles()         # 样式设置
-        self.create_widgets()       # 创建界面组件
-
-    # 功能标签页
-    def create_merge_tab()          # PDF合并标签
-    def create_split_tab()          # PDF拆分标签
-    def create_watermark_tab()      # PDF水印标签 ✅ NEW
-    def create_info_tab()           # PDF信息标签
-
-    # 水印功能方法 ✅ NEW
-    def add_watermark_to_pdf()      # 添加水印到PDF
-    def update_watermark_preview()  # 更新水印预览
-    def browse_watermark_image()    # 浏览水印图片
-```
-
-#### 启动方式
-```bash
-# 命令行启动
-pdftool-gui
-
-# 或者直接运行
-python -m pdftool.gui.main
-
-# 使用Makefile
-make run-gui
-```
-
----
-
-## ⚙️ 配置管理
-
-### 环境变量配置
-
-所有配置项都支持环境变量覆盖，前缀为 `PDFTOOL_`：
-
-```bash
-# 应用配置
-export PDFTOOL_DEBUG=true
-export PDFTOOL_APP_NAME="自定义PDF工具"
-
-# 文件处理
-export PDFTOOL_TEMP_DIR="/tmp/pdftool"
-export PDFTOOL_MAX_FILE_SIZE=52428800  # 50MB
-
-# API服务
-export PDFTOOL_API_HOST="127.0.0.1"
-export PDFTOOL_API_PORT=9000
-export PDFTOOL_API_WORKERS=4
-
-# 日志配置
-export PDFTOOL_LOG_LEVEL="DEBUG"
-export PDFTOOL_LOG_FILE="/var/log/pdftool.log"
-```
-
-### .env 文件配置
-
-创建 `.env` 文件进行本地配置：
-
-```env
-# .env 文件示例
-PDFTOOL_DEBUG=true
-PDFTOOL_TEMP_DIR=./temp
-PDFTOOL_API_PORT=8000
-PDFTOOL_LOG_LEVEL=INFO
-```
-
-### 配置优先级
-
-1. 环境变量 (最高优先级)
-2. .env 文件
-3. 代码中的默认值 (最低优先级)
-
----
-
-## 🔧 开发工具
-
-### Makefile 命令
-
-项目提供完整的Makefile支持常见开发任务：
-
-#### 安装和设置
-```bash
-make install          # 安装基础包
-make install-dev       # 安装开发依赖
-```
-
-#### 代码质量
-```bash
-make lint             # 代码检查 (flake8, mypy, black)
-make format           # 代码格式化 (black, isort)
-```
-
-#### 测试
-```bash
-make test             # 运行测试
-make test-cov         # 测试 + 覆盖率报告
-```
-
-#### 运行应用
-```bash
-make run-gui          # 启动GUI应用
-make run-api          # 启动API服务
-make dev-api          # 开发模式API (热重载)
-```
-
-#### 构建和清理
-```bash
-make build            # 构建分发包
-make clean            # 清理构建文件
-```
-
-#### Docker支持
-```bash
-make docker-build     # 构建Docker镜像
-make docker-run       # 运行Docker容器
-```
-
-### 依赖管理
-
-#### 核心依赖
-```toml
-dependencies = [
-    "PyPDF2>=3.0.0",           # PDF处理引擎
-    "fastapi>=0.104.0",        # Web框架
-    "uvicorn>=0.24.0",         # ASGI服务器
-    "python-multipart>=0.0.6", # 文件上传支持
-]
-```
-
-#### 开发依赖
-```toml
-dev = [
-    "pytest>=7.0.0",          # 测试框架
-    "pytest-cov>=4.0.0",      # 测试覆盖率
-    "black>=22.0.0",          # 代码格式化
-    "flake8>=5.0.0",          # 代码检查
-    "mypy>=1.0.0",            # 类型检查
-    "pre-commit>=2.20.0",     # Git钩子
-]
-```
-
-### 代码质量标准
-
-#### Black配置
-- 行长度: 100字符
-- 目标版本: Python 3.8+
-
-#### MyPy配置
-- 严格类型检查
-- 不允许未类型化的函数定义
-- 警告未使用的导入
-
-#### 测试配置
-- 测试目录: `tests/`
-- 覆盖率要求: `src/pdftool`
-- HTML报告生成: `htmlcov/`
-
----
-
-## 🚀 部署指南
-
-### 开发环境部署
-
-#### 1. 环境准备
-```bash
-# 克隆项目
-git clone https://github.com/Rem-yl/PDFTool.git
-cd PDFTool
-
-# 创建虚拟环境
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# 或 venv\Scripts\activate  # Windows
-
-# 安装依赖
-make install-dev
-```
-
-#### 2. 配置设置
-```bash
-# 复制配置模板
-cp .env.example .env
-
-# 编辑配置
-vim .env
-```
-
-#### 3. 运行测试
-```bash
-make test
-make lint
-```
-
-### 生产环境部署
-
-#### 1. 使用Docker (推荐)
-```bash
-# 构建镜像
-make docker-build
-
-# 运行容器
-make docker-run
-
-# 或使用docker-compose
-docker-compose up --build
-```
-
-#### 2. 直接部署
-```bash
-# 安装生产依赖
-pip install -e ".[api]"
-
-# 启动API服务
-uvicorn pdftool.api.main:app --host 0.0.0.0 --port 8000 --workers 4
-
-# 或使用gunicorn
-gunicorn pdftool.api.main:app -w 4 -k uvicorn.workers.UvicornWorker
-```
-
-#### 3. 系统服务配置
-
-**systemd服务配置** (`/etc/systemd/system/pdftool.service`):
-```ini
-[Unit]
-Description=PDFTool API Service
-After=network.target
-
-[Service]
-Type=simple
-User=pdftool
-WorkingDirectory=/opt/pdftool
-Environment=PDFTOOL_LOG_LEVEL=INFO
-Environment=PDFTOOL_API_WORKERS=4
-ExecStart=/opt/pdftool/venv/bin/uvicorn pdftool.api.main:app --host 0.0.0.0 --port 8000
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### 反向代理配置
-
-**Nginx配置示例**:
-```nginx
-server {
-    listen 80;
-    server_name pdftool.example.com;
-    
-    client_max_body_size 100M;
-    
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
----
-
-## 🔌 扩展开发指南
-
-### 完整功能扩展流程
-
-本节详细说明如何向PDFTool添加新功能。以**PDF压缩功能**为例，展示完整的开发流程。
-
----
-
-### 📋 开发步骤概览
-
-```
-1. 🎯 需求分析和设计
-   ├── 功能需求定义
-   ├── 接口设计
-   └── 数据模型设计
-
-2. 🔧 核心层实现 (Core Layer)
-   ├── 扩展 PDFOperations 类
-   ├── 添加数据模型
-   └── 定义自定义异常
-
-3. 🌐 API层实现 (API Layer)  
-   ├── 创建服务层
-   ├── 添加路由端点
-   ├── 设计请求/响应模型
-   └── 创建Web界面
-
-4. 🖥️ GUI层实现 (GUI Layer)
-   ├── 添加新标签页
-   ├── 设计用户界面
-   └── 实现事件处理
-
-5. ⚙️ 配置和测试
-   ├── 添加配置选项
-   ├── 编写单元测试
-   ├── 更新文档
-   └── 验证功能
-```
-
----
-
-### 🎯 第一步：需求分析和设计
-
-#### 功能需求定义
-
-假设我们要添加**PDF压缩功能**：
-
-```markdown
-# PDF压缩功能需求
-
-## 功能描述
-- 减少PDF文件大小，提高传输和存储效率
-- 支持多种压缩级别
-- 保持可读性的同时最大化压缩比
-
-## 用户接口
-- Web界面: 上传PDF -> 选择压缩级别 -> 下载压缩后的文件
-- GUI界面: 拖拽PDF文件 -> 配置压缩选项 -> 保存结果
-- API接口: POST请求 -> 返回压缩文件
-
-## 技术要求  
-- 支持图片压缩
-- 可选择移除元数据
-- 压缩质量可调节 (0.1-1.0)
-- 保持文档结构完整性
-```
-
-#### 接口设计
-
-```python
-# API接口设计
-POST /api/v1/pdf/compress
-Content-Type: multipart/form-data
-
-参数:
-- file: PDF文件
-- quality: 压缩质量 (0.1-1.0)
-- compress_images: 是否压缩图片
-- remove_metadata: 是否移除元数据
-
-响应:
-- 成功: 返回压缩后的PDF文件
-- 失败: 返回错误信息
-```
-
----
-
-### 🔧 第二步：核心层实现
-
-#### 1. 扩展数据模型 (`core/models.py`)
-
-```python
-from dataclasses import dataclass
-from typing import Optional
-from pathlib import Path
-
-@dataclass
-class CompressionOptions:
-    """PDF压缩选项配置"""
-    quality: float = 0.7                    # 压缩质量 (0.1-1.0)
-    compress_images: bool = True             # 压缩图片
-    remove_metadata: bool = False            # 移除元数据
-    remove_annotations: bool = False         # 移除注释
-    optimize_for_web: bool = True            # Web优化
-    output_file: Optional[Path] = None       # 输出文件路径
-
-@dataclass
-class CompressionResult(OperationResult):
-    """压缩操作结果"""
-    original_size: Optional[int] = None      # 原始文件大小
-    compressed_size: Optional[int] = None    # 压缩后大小
-    compression_ratio: Optional[float] = None # 压缩比例
-```
-
-#### 2. 扩展核心引擎 (`core/pdf_operations.py`)
-
-```python
-import os
-from uuid import uuid4
-from PyPDF2 import PdfReader, PdfWriter
-from PIL import Image
-import io
-
-class PDFOperations:
-    """PDF操作核心引擎 - 扩展压缩功能"""
-    
-    def compress_pdf(self, file_path: Path, options: CompressionOptions) -> CompressionResult:
-        """
-        PDF压缩功能
-        
-        Args:
-            file_path: 输入PDF文件路径
-            options: 压缩选项配置
-            
-        Returns:
-            CompressionResult: 压缩操作结果
-            
-        Raises:
-            PDFValidationError: 文件验证失败
-            PDFProcessingError: 压缩处理失败
-        """
         try:
-            # 1. 验证输入文件
-            self.validate_pdf_file(file_path)
-            logger.info(f"开始压缩PDF文件: {file_path}")
-            
-            # 2. 获取原始文件大小
-            original_size = file_path.stat().st_size
-            
-            # 3. 创建输出文件路径
-            output_file = options.output_file or (
-                self.temp_dir / f"compressed_{uuid4().hex}.pdf"
+            # 3. 处理请求
+            result = await handler.handle(files, request_data)
+
+            # 4. 记录成功指标
+            self.metrics_collector.record_request(
+                service_name,
+                "success",
+                time.time() - start_time
             )
-            
-            # 4. 执行压缩操作
-            compressed_size = self._perform_compression(
-                file_path, output_file, options
-            )
-            
-            # 5. 计算压缩比例
-            compression_ratio = 1 - (compressed_size / original_size)
-            
-            # 6. 返回结果
-            return CompressionResult(
-                success=True,
-                message=f"PDF压缩成功，压缩比例: {compression_ratio:.1%}",
-                output_files=[output_file],
-                original_size=original_size,
-                compressed_size=compressed_size,
-                compression_ratio=compression_ratio
-            )
-            
-        except PDFToolError as e:
-            logger.error(f"PDF压缩失败: {e}")
-            return CompressionResult(
-                success=False,
-                message=f"PDF压缩失败: {str(e)}",
-                output_files=[]
-            )
-        except Exception as e:
-            logger.error(f"PDF压缩过程中发生未知错误: {e}")
-            raise PDFProcessingError(f"PDF压缩失败: {str(e)}")
-    
-    def _perform_compression(
-        self, 
-        input_file: Path, 
-        output_file: Path, 
-        options: CompressionOptions
-    ) -> int:
-        """执行具体的压缩操作"""
-        
-        # 读取PDF文件
-        reader = PdfReader(str(input_file))
-        writer = PdfWriter()
-        
-        # 处理每一页
-        for page_num, page in enumerate(reader.pages):
-            # 压缩页面内容
-            if options.compress_images:
-                page = self._compress_page_images(page, options.quality)
-            
-            # 优化页面对象
-            page.compress_content_streams()
-            writer.add_page(page)
-        
-        # 移除元数据
-        if options.remove_metadata:
-            writer.add_metadata({})
-        else:
-            writer.add_metadata(reader.metadata or {})
-        
-        # 移除注释
-        if options.remove_annotations:
-            for page in writer.pages:
-                if '/Annots' in page:
-                    del page['/Annots']
-        
-        # 写入压缩后的文件
-        with open(output_file, 'wb') as output_stream:
-            writer.write(output_stream)
-        
-        return output_file.stat().st_size
-    
-    def _compress_page_images(self, page, quality: float):
-        """压缩页面中的图片"""
-        # 实现图片压缩逻辑
-        # 这里可以添加具体的图片处理代码
-        return page
-```
 
-#### 3. 添加自定义异常 (`core/exceptions.py`)
-
-```python
-class PDFCompressionError(PDFProcessingError):
-    """PDF压缩专用异常"""
-    pass
-
-class InvalidCompressionQualityError(PDFValidationError):
-    """无效的压缩质量参数"""
-    pass
-```
-
----
-
-### 🌐 第三步：API层实现
-
-#### 1. 创建服务层 (`api/services/compression_service.py`)
-
-```python
-from typing import List, Optional
-from fastapi import UploadFile
-from pathlib import Path
-import tempfile
-import os
-
-from ...core.pdf_operations import PDFOperations
-from ...core.models import CompressionOptions, CompressionResult
-from ...core.exceptions import PDFCompressionError
-from ...utils.logging import get_logger
-
-logger = get_logger("api.services.compression")
-
-class CompressionService:
-    """PDF压缩服务类"""
-    
-    def __init__(self, pdf_operations: PDFOperations):
-        self.pdf_ops = pdf_operations
-    
-    async def compress_pdf(
-        self, 
-        file: UploadFile, 
-        quality: float = 0.7,
-        compress_images: bool = True,
-        remove_metadata: bool = False,
-        remove_annotations: bool = False
-    ) -> CompressionResult:
-        """
-        压缩PDF文件
-        
-        Args:
-            file: 上传的PDF文件
-            quality: 压缩质量 (0.1-1.0)
-            compress_images: 是否压缩图片
-            remove_metadata: 是否移除元数据
-            remove_annotations: 是否移除注释
-            
-        Returns:
-            CompressionResult: 压缩结果
-        """
-        temp_file = None
-        try:
-            # 1. 验证文件类型
-            if not file.filename.lower().endswith('.pdf'):
-                raise PDFCompressionError("只支持PDF文件格式")
-            
-            # 2. 验证压缩质量参数
-            if not 0.1 <= quality <= 1.0:
-                raise InvalidCompressionQualityError(
-                    "压缩质量必须在0.1-1.0之间"
-                )
-            
-            # 3. 保存临时文件
-            temp_file = await self._save_upload_file(file)
-            
-            # 4. 配置压缩选项
-            options = CompressionOptions(
-                quality=quality,
-                compress_images=compress_images,
-                remove_metadata=remove_metadata,
-                remove_annotations=remove_annotations
-            )
-            
-            # 5. 执行压缩
-            result = self.pdf_ops.compress_pdf(temp_file, options)
-            
-            logger.info(
-                f"PDF压缩完成: {file.filename}, "
-                f"压缩比例: {result.compression_ratio:.1%}"
-            )
-            
             return result
-            
+
         except Exception as e:
-            logger.error(f"PDF压缩服务出错: {e}")
+            # 5. 记录失败指标
+            self.metrics_collector.record_request(
+                service_name,
+                "error",
+                time.time() - start_time
+            )
             raise
+```
+
+---
+
+## 🚀 扩展性设计指导
+
+### 扩展原则
+
+#### 1. **零侵入扩展原则**
+```python
+# ✅ 正确的扩展方式 - 不修改现有代码
+class CompressionOperation(BasePDFOperation):
+    """新的压缩操作 - 独立实现"""
+
+    def execute(self, input_file: Path, options: CompressionOptions) -> OperationResult:
+        # 实现压缩逻辑
+        pass
+
+# 注册新操作
+def register_compression_extension():
+    """扩展注册函数"""
+    factory = get_operation_factory()
+    factory.register_operation("compress", CompressionOperation)
+
+# ❌ 错误的扩展方式 - 修改现有代码
+class PDFProcessor:
+    def compress_pdf(self, ...):  # 在核心类中添加新方法
+        pass
+```
+
+#### 2. **插件优先原则**
+```python
+# 优先使用插件机制而非直接修改
+class CompressionPlugin(BasePlugin):
+    """压缩功能插件"""
+
+    @property
+    def description(self) -> str:
+        return "PDF compression and optimization plugin"
+
+    def initialize(self, config: Optional[Dict[str, Any]] = None) -> None:
+        """初始化插件 - 注册操作和服务"""
+
+        # 注册操作
+        factory = get_operation_factory()
+        factory.register_operation("compress", CompressionOperation)
+        factory.register_operation("optimize", OptimizationOperation)
+
+        # 注册API服务
+        service_registry = get_service_registry()
+        service_registry.register_handler("compress", CompressionServiceHandler)
+
+    def shutdown(self) -> None:
+        """关闭插件 - 清理资源"""
+        pass
+```
+
+### 扩展场景指导
+
+#### 场景1: 添加新的PDF操作
+
+**需求**: 添加PDF压缩功能
+
+**实施步骤**:
+
+1. **创建操作类**
+```python
+# src/pdftool/domains/compression/operations/compress.py
+class CompressOperation(BasePDFOperation):
+    """PDF压缩操作"""
+
+    def execute(self, input_file: Path, options: CompressionOptions) -> OperationResult:
+        """执行压缩"""
+
+        # 1. 验证输入
+        self.validate_pdf_file(input_file)
+
+        # 2. 执行压缩逻辑
+        output_file = self._perform_compression(input_file, options)
+
+        # 3. 返回结果
+        return OperationResult(
+            success=True,
+            output_file=output_file,
+            metadata={"compression_ratio": 0.7}
+        )
+
+    def validate_options(self, options: CompressionOptions) -> bool:
+        """验证压缩选项"""
+        return (options.quality >= 0.1 and options.quality <= 1.0)
+
+    def _perform_compression(self, input_file: Path, options: CompressionOptions) -> Path:
+        """执行具体的压缩逻辑"""
+        # 实现压缩算法
+        pass
+```
+
+2. **定义数据模型**
+```python
+# src/pdftool/domains/compression/models.py
+class CompressionOptions(BaseModel):
+    """压缩选项"""
+    quality: float = 0.8
+    method: CompressionMethod = CompressionMethod.STANDARD
+    preserve_bookmarks: bool = True
+    output_filename: Optional[str] = None
+
+class CompressionMethod(Enum):
+    """压缩方法"""
+    STANDARD = "standard"
+    AGGRESSIVE = "aggressive"
+    LOSSLESS = "lossless"
+```
+
+3. **注册操作**
+```python
+# src/pdftool/domains/compression/__init__.py
+def register_compression_operations():
+    """注册压缩操作到系统"""
+    from pdftool.core.factory import get_operation_factory
+    from .operations.compress import CompressOperation
+
+    factory = get_operation_factory()
+    factory.register_operation("compress", CompressOperation)
+```
+
+4. **添加API服务**
+```python
+# src/pdftool/interfaces/web/handlers/compress.py
+class CompressionServiceHandler(BaseServiceHandler):
+    """压缩服务处理器"""
+
+    @property
+    def service_name(self) -> str:
+        return "compress"
+
+    async def handle(self, files: List[UploadFile], request: CompressionRequest) -> OperationResult:
+        """处理压缩请求"""
+
+        if len(files) != 1:
+            raise PDFValidationError("Compression requires exactly one file")
+
+        # 保存文件
+        input_file = await self._save_upload_file(files[0])
+
+        try:
+            # 执行压缩
+            options = CompressionOptions(**request.dict())
+            result = self.pdf_processor.execute_operation("compress", input_file, options)
+            return result
+
         finally:
             # 清理临时文件
-            if temp_file and temp_file.exists():
-                temp_file.unlink()
-    
-    async def _save_upload_file(self, file: UploadFile) -> Path:
-        """保存上传文件到临时位置"""
-        suffix = Path(file.filename).suffix
-        temp_file = Path(tempfile.mktemp(suffix=suffix))
-        
-        with open(temp_file, 'wb') as f:
-            content = await file.read()
-            f.write(content)
-        
-        return temp_file
+            self._cleanup_temp_file(input_file)
 ```
 
-#### 2. 添加请求/响应模型 (`api/schemas/compression.py`)
-
+5. **添加CLI命令**
 ```python
-from pydantic import BaseModel, Field
-from typing import Optional
-
-class PDFCompressionRequest(BaseModel):
-    """PDF压缩请求模型"""
-    quality: float = Field(
-        default=0.7, 
-        ge=0.1, 
-        le=1.0, 
-        description="压缩质量，取值范围0.1-1.0"
-    )
-    compress_images: bool = Field(
-        default=True, 
-        description="是否压缩图片"
-    )
-    remove_metadata: bool = Field(
-        default=False, 
-        description="是否移除文档元数据"
-    )
-    remove_annotations: bool = Field(
-        default=False, 
-        description="是否移除注释"
-    )
-
-class PDFCompressionResponse(BaseModel):
-    """PDF压缩响应模型"""
-    success: bool = Field(description="操作是否成功")
-    message: str = Field(description="操作结果消息")
-    original_size: Optional[int] = Field(description="原始文件大小(字节)")
-    compressed_size: Optional[int] = Field(description="压缩后文件大小(字节)")
-    compression_ratio: Optional[float] = Field(description="压缩比例(0-1)")
-    savings: Optional[str] = Field(description="节省的存储空间")
-    
-    class Config:
-        schema_extra = {
-            "example": {
-                "success": True,
-                "message": "PDF压缩成功",
-                "original_size": 10485760,
-                "compressed_size": 5242880,
-                "compression_ratio": 0.5,
-                "savings": "5.0 MB"
-            }
-        }
-```
-
-#### 3. 添加路由端点 (`api/routers/pdf.py`)
-
-```python
-from fastapi import APIRouter, File, UploadFile, Form, Depends, HTTPException
-from fastapi.responses import FileResponse
-from typing import Annotated
-
-from ..services.compression_service import CompressionService
-from ..schemas.compression import PDFCompressionResponse
-from ..dependencies import get_compression_service
-from ...utils.logging import get_logger
-
-logger = get_logger("api.routers.pdf")
-
-@router.post(
-    "/compress",
-    summary="压缩PDF文件",
-    description="压缩PDF文件以减少文件大小，支持多种压缩选项",
-    responses={
-        200: {"description": "压缩成功，返回压缩后的PDF文件"},
-        400: {"description": "请求参数错误"},
-        500: {"description": "服务器内部错误"}
-    }
-)
-async def compress_pdf(
-    file: Annotated[UploadFile, File(description="要压缩的PDF文件")],
-    quality: Annotated[float, Form(description="压缩质量(0.1-1.0)")] = 0.7,
-    compress_images: Annotated[bool, Form(description="是否压缩图片")] = True,
-    remove_metadata: Annotated[bool, Form(description="是否移除元数据")] = False,
-    remove_annotations: Annotated[bool, Form(description="是否移除注释")] = False,
-    compression_service: CompressionService = Depends(get_compression_service)
-):
-    """压缩PDF文件接口"""
-    
+# src/pdftool/interfaces/cli/commands.py
+@cli.command()
+@click.argument('file', type=click.Path(exists=True))
+@click.option('--quality', type=float, default=0.8, help='压缩质量 (0.1-1.0)')
+@click.option('--method', type=click.Choice(['standard', 'aggressive', 'lossless']),
+              default='standard', help='压缩方法')
+@click.option('--output', '-o', help='输出文件名', required=True)
+def compress(file: str, quality: float, method: str, output: str):
+    """压缩PDF文件"""
     try:
-        # 执行压缩
-        result = await compression_service.compress_pdf(
-            file=file,
+        processor = PDFProcessor()
+        file_path = Path(file)
+
+        options = CompressionOptions(
             quality=quality,
-            compress_images=compress_images,
-            remove_metadata=remove_metadata,
-            remove_annotations=remove_annotations
+            method=CompressionMethod(method),
+            output_filename=output
         )
-        
-        if not result.success:
-            raise HTTPException(status_code=400, detail=result.message)
-        
-        # 返回压缩后的文件
-        output_file = result.output_files[0]
-        
-        return FileResponse(
-            path=str(output_file),
-            filename=f"compressed_{file.filename}",
-            media_type="application/pdf",
-            headers={
-                "X-Original-Size": str(result.original_size),
-                "X-Compressed-Size": str(result.compressed_size),
-                "X-Compression-Ratio": str(result.compression_ratio)
-            }
-        )
-        
-    except Exception as e:
-        logger.error(f"PDF压缩接口错误: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
-@router.get(
-    "/compress/info",
-    response_model=PDFCompressionResponse,
-    summary="获取压缩功能信息"
-)
-async def get_compression_info():
-    """获取PDF压缩功能的详细信息"""
-    return PDFCompressionResponse(
-        success=True,
-        message="PDF压缩功能可用",
-        original_size=None,
-        compressed_size=None,
-        compression_ratio=None,
-        savings=None
-    )
-```
+        result = processor.execute_operation("compress", file_path, options)
 
-#### 4. 创建Web界面模板 (`api/templates/compress.html`)
-
-```html
-{% extends "base.html" %}
-
-{% block title %}PDF压缩 - PDFTool{% endblock %}
-
-{% block content %}
-<div class="container">
-    <div class="header">
-        <h1>📉 PDF压缩</h1>
-        <p>减少PDF文件大小，提高传输和存储效率</p>
-    </div>
-
-    <div class="upload-section">
-        <form id="compressForm" enctype="multipart/form-data">
-            <!-- 文件上传区域 -->
-            <div class="file-upload" id="fileUpload">
-                <div class="upload-icon">📄</div>
-                <p>拖拽PDF文件到此处或点击选择</p>
-                <input type="file" id="fileInput" name="file" accept=".pdf" required>
-                <button type="button" onclick="document.getElementById('fileInput').click()">
-                    选择PDF文件
-                </button>
-            </div>
-
-            <!-- 压缩选项 -->
-            <div class="options-panel" id="optionsPanel" style="display: none;">
-                <h3>🔧 压缩选项</h3>
-                
-                <div class="option-group">
-                    <label for="quality">压缩质量:</label>
-                    <input type="range" id="quality" name="quality" 
-                           min="0.1" max="1.0" step="0.1" value="0.7">
-                    <span id="qualityValue">0.7</span>
-                </div>
-
-                <div class="option-group">
-                    <label>
-                        <input type="checkbox" name="compress_images" checked>
-                        压缩图片
-                    </label>
-                </div>
-
-                <div class="option-group">
-                    <label>
-                        <input type="checkbox" name="remove_metadata">
-                        移除元数据
-                    </label>
-                </div>
-
-                <div class="option-group">
-                    <label>
-                        <input type="checkbox" name="remove_annotations">
-                        移除注释
-                    </label>
-                </div>
-
-                <button type="submit" class="compress-btn">
-                    🗜️ 开始压缩
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <!-- 结果显示区域 -->
-    <div class="result-section" id="resultSection" style="display: none;">
-        <h3>✅ 压缩完成</h3>
-        <div class="result-info">
-            <div class="size-comparison">
-                <div class="size-item">
-                    <span class="label">原始大小:</span>
-                    <span id="originalSize">-</span>
-                </div>
-                <div class="size-item">
-                    <span class="label">压缩后:</span>
-                    <span id="compressedSize">-</span>
-                </div>
-                <div class="size-item highlight">
-                    <span class="label">节省空间:</span>
-                    <span id="savings">-</span>
-                </div>
-            </div>
-        </div>
-        <button id="downloadBtn" class="download-btn">
-            📥 下载压缩文件
-        </button>
-    </div>
-
-    <!-- 进度指示器 -->
-    <div class="progress-section" id="progressSection" style="display: none;">
-        <div class="progress-bar">
-            <div class="progress-fill"></div>
-        </div>
-        <p>正在压缩PDF文件，请稍候...</p>
-    </div>
-</div>
-
-<script>
-// JavaScript 实现文件上传和压缩处理
-document.addEventListener('DOMContentLoaded', function() {
-    const fileInput = document.getElementById('fileInput');
-    const fileUpload = document.getElementById('fileUpload');
-    const optionsPanel = document.getElementById('optionsPanel');
-    const compressForm = document.getElementById('compressForm');
-    const qualitySlider = document.getElementById('quality');
-    const qualityValue = document.getElementById('qualityValue');
-    
-    // 质量滑块事件
-    qualitySlider.addEventListener('input', function() {
-        qualityValue.textContent = this.value;
-    });
-    
-    // 文件选择事件
-    fileInput.addEventListener('change', function() {
-        if (this.files.length > 0) {
-            optionsPanel.style.display = 'block';
-        }
-    });
-    
-    // 拖拽支持
-    fileUpload.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        this.classList.add('drag-over');
-    });
-    
-    fileUpload.addEventListener('dragleave', function(e) {
-        e.preventDefault();
-        this.classList.remove('drag-over');
-    });
-    
-    fileUpload.addEventListener('drop', function(e) {
-        e.preventDefault();
-        this.classList.remove('drag-over');
-        
-        const files = e.dataTransfer.files;
-        if (files.length > 0 && files[0].type === 'application/pdf') {
-            fileInput.files = files;
-            optionsPanel.style.display = 'block';
-        }
-    });
-    
-    // 表单提交事件
-    compressForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this);
-        const progressSection = document.getElementById('progressSection');
-        const resultSection = document.getElementById('resultSection');
-        
-        try {
-            // 显示进度
-            progressSection.style.display = 'block';
-            resultSection.style.display = 'none';
-            
-            // 提交压缩请求
-            const response = await fetch('/api/v1/pdf/compress', {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (response.ok) {
-                // 获取文件信息
-                const originalSize = response.headers.get('X-Original-Size');
-                const compressedSize = response.headers.get('X-Compressed-Size');
-                const compressionRatio = response.headers.get('X-Compression-Ratio');
-                
-                // 显示结果
-                showCompressionResult(originalSize, compressedSize, compressionRatio);
-                
-                // 准备下载
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const downloadBtn = document.getElementById('downloadBtn');
-                
-                downloadBtn.onclick = function() {
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `compressed_${fileInput.files[0].name}`;
-                    a.click();
-                };
-                
-            } else {
-                const error = await response.text();
-                throw new Error(error);
-            }
-            
-        } catch (error) {
-            alert('压缩失败: ' + error.message);
-        } finally {
-            progressSection.style.display = 'none';
-        }
-    });
-    
-    function showCompressionResult(originalSize, compressedSize, compressionRatio) {
-        const resultSection = document.getElementById('resultSection');
-        
-        document.getElementById('originalSize').textContent = formatFileSize(originalSize);
-        document.getElementById('compressedSize').textContent = formatFileSize(compressedSize);
-        
-        const savings = originalSize - compressedSize;
-        document.getElementById('savings').textContent = 
-            `${formatFileSize(savings)} (${(compressionRatio * 100).toFixed(1)}%)`;
-        
-        resultSection.style.display = 'block';
-    }
-    
-    function formatFileSize(bytes) {
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        if (bytes === 0) return '0 B';
-        const i = Math.floor(Math.log(bytes) / Math.log(1024));
-        return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-    }
-});
-</script>
-{% endblock %}
-```
-
-#### 5. 添加Web路由 (`api/routers/web.py`)
-
-```python
-@router.get("/compress", response_class=HTMLResponse, summary="PDF压缩页面")
-async def compress_page(request: Request):
-    """PDF压缩功能页面"""
-    return templates.TemplateResponse("compress.html", {"request": request})
-```
-
----
-
-### 🖥️ 第四步：GUI层实现
-
-#### 扩展GUI应用 (`gui/main.py`)
-
-```python
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
-from pathlib import Path
-import threading
-
-class ModernPDFTool:
-    """现代化PDF工具GUI - 添加压缩功能"""
-    
-    def create_compress_tab(self):
-        """创建PDF压缩标签页"""
-        compress_frame = ttk.Frame(self.notebook)
-        self.notebook.add(compress_frame, text="📉 PDF压缩")
-        
-        # 主容器
-        main_frame = ttk.Frame(compress_frame, padding="20")
-        main_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # 标题
-        title_label = ttk.Label(
-            main_frame, 
-            text="📉 PDF压缩", 
-            font=("微软雅黑", 16, "bold")
-        )
-        title_label.pack(pady=(0, 20))
-        
-        # 文件选择区域
-        file_frame = ttk.LabelFrame(main_frame, text="选择PDF文件", padding="10")
-        file_frame.pack(fill=tk.X, pady=(0, 20))
-        
-        self.compress_file_var = tk.StringVar()
-        file_entry = ttk.Entry(file_frame, textvariable=self.compress_file_var, width=50)
-        file_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
-        
-        browse_btn = ttk.Button(
-            file_frame, 
-            text="浏览", 
-            command=self.browse_compress_file
-        )
-        browse_btn.pack(side=tk.RIGHT)
-        
-        # 压缩选项区域
-        options_frame = ttk.LabelFrame(main_frame, text="压缩选项", padding="10")
-        options_frame.pack(fill=tk.X, pady=(0, 20))
-        
-        # 压缩质量
-        quality_frame = ttk.Frame(options_frame)
-        quality_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        ttk.Label(quality_frame, text="压缩质量:").pack(side=tk.LEFT)
-        
-        self.quality_var = tk.DoubleVar(value=0.7)
-        quality_scale = ttk.Scale(
-            quality_frame,
-            from_=0.1,
-            to=1.0,
-            variable=self.quality_var,
-            orient=tk.HORIZONTAL,
-            length=200
-        )
-        quality_scale.pack(side=tk.LEFT, padx=(10, 10))
-        
-        self.quality_label = ttk.Label(quality_frame, text="0.7")
-        self.quality_label.pack(side=tk.LEFT)
-        
-        quality_scale.configure(command=self.update_quality_label)
-        
-        # 其他选项
-        self.compress_images_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(
-            options_frame,
-            text="压缩图片",
-            variable=self.compress_images_var
-        ).pack(anchor=tk.W, pady=2)
-        
-        self.remove_metadata_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(
-            options_frame,
-            text="移除元数据",
-            variable=self.remove_metadata_var
-        ).pack(anchor=tk.W, pady=2)
-        
-        self.remove_annotations_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(
-            options_frame,
-            text="移除注释",
-            variable=self.remove_annotations_var
-        ).pack(anchor=tk.W, pady=2)
-        
-        # 操作按钮
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill=tk.X)
-        
-        self.compress_btn = ttk.Button(
-            button_frame,
-            text="🗜️ 开始压缩",
-            command=self.compress_pdf_action,
-            style="Accent.TButton"
-        )
-        self.compress_btn.pack(side=tk.LEFT, padx=(0, 10))
-        
-        # 进度条
-        self.compress_progress = ttk.Progressbar(
-            main_frame,
-            mode='indeterminate',
-            length=400
-        )
-        self.compress_progress.pack(pady=20, fill=tk.X)
-        self.compress_progress.pack_forget()  # 初始隐藏
-        
-        # 结果显示区域
-        self.compress_result_frame = ttk.LabelFrame(
-            main_frame, 
-            text="压缩结果", 
-            padding="10"
-        )
-        # 初始隐藏结果区域
-        
-    def browse_compress_file(self):
-        """浏览选择要压缩的PDF文件"""
-        file_path = filedialog.askopenfilename(
-            title="选择PDF文件",
-            filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")]
-        )
-        if file_path:
-            self.compress_file_var.set(file_path)
-    
-    def update_quality_label(self, value):
-        """更新压缩质量标签"""
-        self.quality_label.config(text=f"{float(value):.1f}")
-    
-    def compress_pdf_action(self):
-        """执行PDF压缩操作"""
-        file_path = self.compress_file_var.get()
-        
-        if not file_path:
-            messagebox.showerror("错误", "请先选择PDF文件")
-            return
-        
-        if not Path(file_path).exists():
-            messagebox.showerror("错误", "文件不存在")
-            return
-        
-        # 在后台线程中执行压缩
-        threading.Thread(
-            target=self._compress_pdf_thread,
-            args=(file_path,),
-            daemon=True
-        ).start()
-    
-    def _compress_pdf_thread(self, file_path):
-        """在后台线程中执行PDF压缩"""
-        try:
-            # 显示进度条
-            self.root.after(0, self._show_compress_progress)
-            
-            # 配置压缩选项
-            from ..core.models import CompressionOptions
-            options = CompressionOptions(
-                quality=self.quality_var.get(),
-                compress_images=self.compress_images_var.get(),
-                remove_metadata=self.remove_metadata_var.get(),
-                remove_annotations=self.remove_annotations_var.get()
-            )
-            
-            # 执行压缩
-            result = self.pdf_operations.compress_pdf(Path(file_path), options)
-            
-            # 在主线程中显示结果
-            self.root.after(0, self._show_compress_result, result)
-            
-        except Exception as e:
-            self.root.after(0, self._show_compress_error, str(e))
-    
-    def _show_compress_progress(self):
-        """显示压缩进度"""
-        self.compress_btn.config(state='disabled')
-        self.compress_progress.pack(pady=20, fill=tk.X)
-        self.compress_progress.start()
-    
-    def _hide_compress_progress(self):
-        """隐藏压缩进度"""
-        self.compress_progress.stop()
-        self.compress_progress.pack_forget()
-        self.compress_btn.config(state='normal')
-    
-    def _show_compress_result(self, result):
-        """显示压缩结果"""
-        self._hide_compress_progress()
-        
         if result.success:
-            # 显示成功结果
-            self.compress_result_frame.pack(fill=tk.X, pady=20)
-            
-            # 清空之前的内容
-            for widget in self.compress_result_frame.winfo_children():
-                widget.destroy()
-            
-            # 显示压缩统计
-            stats_text = f"""压缩完成！
-原始大小: {self._format_file_size(result.original_size)}
-压缩后大小: {self._format_file_size(result.compressed_size)}
-压缩比例: {result.compression_ratio:.1%}
-节省空间: {self._format_file_size(result.original_size - result.compressed_size)}"""
-            
-            ttk.Label(
-                self.compress_result_frame,
-                text=stats_text,
-                justify=tk.LEFT
-            ).pack(anchor=tk.W, pady=(0, 10))
-            
-            # 打开文件按钮
-            ttk.Button(
-                self.compress_result_frame,
-                text="📂 打开输出文件夹",
-                command=lambda: self._open_file_location(result.output_files[0])
-            ).pack(side=tk.LEFT)
-            
-            messagebox.showinfo("成功", f"PDF压缩成功！\n{result.message}")
+            click.echo(f"✅ 成功压缩到: {result.output_file}")
+            if result.metadata:
+                ratio = result.metadata.get("compression_ratio", 0)
+                click.echo(f"📊 压缩比: {ratio:.1%}")
         else:
-            messagebox.showerror("错误", f"PDF压缩失败：\n{result.message}")
-    
-    def _show_compress_error(self, error_msg):
-        """显示压缩错误"""
-        self._hide_compress_progress()
-        messagebox.showerror("错误", f"压缩过程中发生错误：\n{error_msg}")
-    
-    def _format_file_size(self, size_bytes):
-        """格式化文件大小显示"""
-        if size_bytes < 1024:
-            return f"{size_bytes} B"
-        elif size_bytes < 1024 * 1024:
-            return f"{size_bytes / 1024:.1f} KB"
-        elif size_bytes < 1024 * 1024 * 1024:
-            return f"{size_bytes / (1024 * 1024):.1f} MB"
-        else:
-            return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
-    
-    def _open_file_location(self, file_path):
-        """打开文件所在位置"""
-        import subprocess
-        import platform
-        
-        if platform.system() == "Windows":
-            subprocess.run(["explorer", "/select,", str(file_path)])
-        elif platform.system() == "Darwin":  # macOS
-            subprocess.run(["open", "-R", str(file_path)])
-        else:  # Linux
-            subprocess.run(["xdg-open", str(file_path.parent)])
+            click.echo(f"❌ 压缩失败: {result.error}")
+
+    except Exception as e:
+        click.echo(f"❌ 错误: {e}")
+```
+
+#### 场景2: 添加新的接口类型
+
+**需求**: 添加GraphQL接口
+
+**实施步骤**:
+
+1. **创建GraphQL接口目录**
+```
+src/pdftool/interfaces/graphql/
+├── __init__.py
+├── schema.py          # GraphQL模式定义
+├── resolvers.py       # 解析器
+├── mutations.py       # 变更操作
+└── subscriptions.py   # 订阅操作
+```
+
+2. **定义GraphQL模式**
+```python
+# src/pdftool/interfaces/graphql/schema.py
+import graphene
+from graphene_file_upload.scalars import Upload
+
+class PDFOperationResult(graphene.ObjectType):
+    """PDF操作结果"""
+    success = graphene.Boolean()
+    output_file_url = graphene.String()
+    error_message = graphene.String()
+    metadata = graphene.JSONString()
+
+class MergePDFs(graphene.Mutation):
+    """合并PDF的GraphQL变更"""
+
+    class Arguments:
+        files = graphene.List(Upload, required=True)
+        output_filename = graphene.String()
+
+    result = graphene.Field(PDFOperationResult)
+
+    def mutate(self, info, files, output_filename=None):
+        # 实现合并逻辑
+        pass
+
+class Query(graphene.ObjectType):
+    """GraphQL查询"""
+    available_operations = graphene.List(graphene.String)
+
+    def resolve_available_operations(self, info):
+        factory = get_operation_factory()
+        return factory.list_operations()
+
+class Mutation(graphene.ObjectType):
+    """GraphQL变更"""
+    merge_pdfs = MergePDFs.Field()
+
+schema = graphene.Schema(query=Query, mutation=Mutation)
+```
+
+#### 场景3: 添加新的中间件
+
+**需求**: 添加请求频率限制中间件
+
+**实施步骤**:
+
+```python
+# src/pdftool/interfaces/web/middleware/rate_limiting.py
+import time
+from collections import defaultdict
+from typing import Dict, Tuple
+
+class RateLimitMiddleware:
+    """请求频率限制中间件"""
+
+    def __init__(self, requests_per_minute: int = 60):
+        self.requests_per_minute = requests_per_minute
+        self.request_history: Dict[str, List[float]] = defaultdict(list)
+
+    async def __call__(self, request: Request, call_next):
+        """中间件处理逻辑"""
+
+        # 1. 获取客户端标识
+        client_id = self._get_client_id(request)
+
+        # 2. 检查频率限制
+        if not self._check_rate_limit(client_id):
+            return JSONResponse(
+                status_code=429,
+                content={"error": "Rate limit exceeded"}
+            )
+
+        # 3. 记录请求
+        self._record_request(client_id)
+
+        # 4. 继续处理请求
+        response = await call_next(request)
+        return response
+
+    def _get_client_id(self, request: Request) -> str:
+        """获取客户端标识"""
+        return request.client.host
+
+    def _check_rate_limit(self, client_id: str) -> bool:
+        """检查是否超过频率限制"""
+        now = time.time()
+        history = self.request_history[client_id]
+
+        # 清理过期记录
+        cutoff = now - 60  # 一分钟前
+        history[:] = [timestamp for timestamp in history if timestamp > cutoff]
+
+        # 检查是否超限
+        return len(history) < self.requests_per_minute
+
+    def _record_request(self, client_id: str) -> None:
+        """记录请求时间"""
+        self.request_history[client_id].append(time.time())
+```
+
+### 最佳实践原则
+
+#### 1. **接口先行原则**
+```python
+# 先定义接口
+class ICompressionService(ABC):
+    @abstractmethod
+    async def compress_document(self, document: Document, options: CompressionOptions) -> CompressedDocument:
+        pass
+
+# 再实现具体类
+class StandardCompressionService(ICompressionService):
+    async def compress_document(self, document: Document, options: CompressionOptions) -> CompressedDocument:
+        # 具体实现
+        pass
+```
+
+#### 2. **配置外部化原则**
+```python
+# 扩展配置通过外部配置文件管理
+# config/extensions.yaml
+extensions:
+  compression:
+    enabled: true
+    quality: 0.8
+    methods: ["standard", "aggressive"]
+
+  security:
+    enabled: false
+    encryption_algorithms: ["AES256", "RSA"]
+
+# 运行时读取配置
+class ExtensionManager:
+    def load_extensions(self):
+        config = load_extension_config()
+        for name, settings in config.items():
+            if settings.get('enabled', False):
+                self._load_extension(name, settings)
+```
+
+#### 3. **版本兼容性原则**
+```python
+class APIVersionManager:
+    """API版本管理"""
+
+    SUPPORTED_VERSIONS = ["v1", "v2", "v3"]
+    DEFAULT_VERSION = "v3"
+
+    def route_request(self, version: str, endpoint: str, request: Any):
+        """根据版本路由请求"""
+
+        if version not in self.SUPPORTED_VERSIONS:
+            raise UnsupportedVersionError(f"Version {version} not supported")
+
+        handler = self._get_version_handler(version, endpoint)
+        return handler.process(request)
+
+    def _get_version_handler(self, version: str, endpoint: str):
+        """获取版本处理器"""
+        # 版本适配逻辑
+        pass
 ```
 
 ---
 
-### ⚙️ 第五步：配置和测试
+## 🛠️ 开发最佳实践
 
-#### 1. 添加配置选项 (`config/settings.py`)
+### 代码规范
 
+#### 1. **文件组织规范**
 ```python
-from pydantic import BaseSettings, Field
+# 标准文件头注释
+"""
+模块名称和简短描述
 
-class Settings(BaseSettings):
-    """应用配置 - 添加压缩相关配置"""
-    
-    # 现有配置...
-    
-    # PDF压缩配置
-    compression_default_quality: float = Field(
-        default=0.7,
-        env="PDFTOOL_COMPRESSION_DEFAULT_QUALITY",
-        description="默认压缩质量"
-    )
-    compression_min_quality: float = Field(
-        default=0.1,
-        env="PDFTOOL_COMPRESSION_MIN_QUALITY",
-        description="最小压缩质量"
-    )
-    compression_max_quality: float = Field(
-        default=1.0,
-        env="PDFTOOL_COMPRESSION_MAX_QUALITY",
-        description="最大压缩质量"
-    )
-    enable_image_compression: bool = Field(
-        default=True,
-        env="PDFTOOL_ENABLE_IMAGE_COMPRESSION",
-        description="是否启用图片压缩"
-    )
-    compression_cache_size: int = Field(
-        default=100,
-        env="PDFTOOL_COMPRESSION_CACHE_SIZE",
-        description="压缩缓存大小(MB)"
-    )
+详细说明模块的职责和使用方法。
+
+Example:
+    from pdftool.domains.document.operations import MergeOperation
+
+    operation = MergeOperation()
+    result = operation.execute(files, options)
+"""
+
+# 导入顺序：标准库 → 第三方库 → 本地模块
+import os
+import sys
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+
+import click
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+from ...common.interfaces import IPDFOperation
+from ...common.models import OperationResult
+from ..models import DocumentOperation
 ```
 
-#### 2. 编写单元测试 (`tests/test_compression.py`)
-
+#### 2. **命名规范**
 ```python
-import pytest
-from pathlib import Path
-import tempfile
-import shutil
+# 类名：帕斯卡命名法
+class PDFMergeOperation:
+    pass
 
-from src.pdftool.core.pdf_operations import PDFOperations
-from src.pdftool.core.models import CompressionOptions
-from src.pdftool.core.exceptions import PDFCompressionError, InvalidCompressionQualityError
+# 函数名：蛇形命名法
+def execute_pdf_operation():
+    pass
 
-class TestPDFCompression:
-    """PDF压缩功能测试"""
-    
-    @pytest.fixture
-    def pdf_operations(self):
-        """PDF操作实例"""
-        temp_dir = Path(tempfile.mkdtemp())
-        pdf_ops = PDFOperations(temp_dir)
-        yield pdf_ops
-        shutil.rmtree(temp_dir)
-    
-    @pytest.fixture
-    def sample_pdf(self):
-        """示例PDF文件"""
-        # 这里应该准备一个测试用的PDF文件
-        return Path("tests/fixtures/sample.pdf")
-    
-    def test_compress_pdf_success(self, pdf_operations, sample_pdf):
-        """测试PDF压缩成功"""
-        options = CompressionOptions(
-            quality=0.7,
-            compress_images=True,
-            remove_metadata=False
-        )
-        
-        result = pdf_operations.compress_pdf(sample_pdf, options)
-        
-        assert result.success
-        assert len(result.output_files) == 1
-        assert result.output_files[0].exists()
-        assert result.original_size > 0
-        assert result.compressed_size > 0
-        assert result.compressed_size < result.original_size
-        assert 0 <= result.compression_ratio <= 1
-    
-    def test_compress_pdf_invalid_quality(self, pdf_operations, sample_pdf):
-        """测试无效的压缩质量参数"""
-        options = CompressionOptions(quality=1.5)  # 超出范围
-        
-        with pytest.raises(InvalidCompressionQualityError):
-            pdf_operations.compress_pdf(sample_pdf, options)
-    
-    def test_compress_pdf_file_not_found(self, pdf_operations):
-        """测试文件不存在的情况"""
-        non_existent_file = Path("non_existent.pdf")
-        options = CompressionOptions()
-        
-        result = pdf_operations.compress_pdf(non_existent_file, options)
-        
-        assert not result.success
-        assert "文件不存在" in result.message
-    
-    def test_compress_pdf_different_quality_levels(self, pdf_operations, sample_pdf):
-        """测试不同压缩质量级别"""
-        qualities = [0.1, 0.5, 0.9]
-        results = []
-        
-        for quality in qualities:
-            options = CompressionOptions(quality=quality)
-            result = pdf_operations.compress_pdf(sample_pdf, options)
-            results.append(result)
-        
-        # 验证压缩质量越低，文件越小
-        assert results[0].compressed_size <= results[1].compressed_size
-        assert results[1].compressed_size <= results[2].compressed_size
-    
-    def test_compress_pdf_with_metadata_removal(self, pdf_operations, sample_pdf):
-        """测试移除元数据的压缩"""
-        options = CompressionOptions(
-            quality=0.7,
-            remove_metadata=True
-        )
-        
-        result = pdf_operations.compress_pdf(sample_pdf, options)
-        
-        assert result.success
-        # 这里可以添加验证元数据是否真正被移除的逻辑
-    
-    @pytest.mark.asyncio
-    async def test_compression_service_api(self):
-        """测试压缩服务API"""
-        from src.pdftool.api.services.compression_service import CompressionService
-        from fastapi import UploadFile
-        import io
-        
-        # 模拟文件上传
-        file_content = b"fake pdf content"  # 实际测试中应使用真实PDF
-        upload_file = UploadFile(
-            filename="test.pdf",
-            file=io.BytesIO(file_content)
-        )
-        
-        pdf_ops = PDFOperations()
-        service = CompressionService(pdf_ops)
-        
-        # 这个测试需要真实的PDF文件才能正常工作
-        # 在实际环境中，应该使用真实的PDF文件进行测试
+# 常量：全大写蛇形
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+
+# 私有成员：下划线前缀
+class PDFProcessor:
+    def __init__(self):
+        self._operation_factory = PDFOperationFactory()
+        self.__internal_state = {}  # 非常私有的成员
 ```
 
-#### 3. 集成测试 (`tests/test_compression_integration.py`)
-
+#### 3. **文档规范**
 ```python
+class PDFMergeOperation:
+    """PDF合并操作实现
+
+    提供智能PDF合并功能，支持书签保留、页面重排序等高级特性。
+
+    Attributes:
+        temp_dir: 临时文件目录
+        preserve_bookmarks: 是否保留书签
+
+    Example:
+        >>> operation = PDFMergeOperation()
+        >>> files = [Path("doc1.pdf"), Path("doc2.pdf")]
+        >>> options = MergeOptions(output_filename="merged.pdf")
+        >>> result = operation.execute(files, options)
+        >>> print(result.success)
+        True
+    """
+
+    def execute(self, input_files: List[Path], options: MergeOptions) -> OperationResult:
+        """执行PDF合并操作
+
+        Args:
+            input_files: 要合并的PDF文件列表
+            options: 合并选项配置
+
+        Returns:
+            包含操作结果的OperationResult对象
+
+        Raises:
+            PDFValidationError: 输入文件验证失败
+            PDFProcessingError: PDF处理过程中出错
+
+        Note:
+            输入文件将按照列表顺序进行合并
+        """
+        pass
+```
+
+### 测试策略
+
+#### 1. **单元测试**
+```python
+# tests/unit/test_merge_operation.py
 import pytest
-from fastapi.testclient import TestClient
+from unittest.mock import Mock, patch
 from pathlib import Path
-import io
 
-from src.pdftool.api.app import create_app
+from pdftool.domains.document.operations.merge import MergeOperation
+from pdftool.common.models import MergeOptions, OperationResult
+from pdftool.common.exceptions import PDFValidationError
 
-class TestCompressionIntegration:
-    """PDF压缩功能集成测试"""
-    
+class TestMergeOperation:
+    """合并操作单元测试"""
+
     @pytest.fixture
-    def client(self):
-        """测试客户端"""
-        app = create_app()
-        return TestClient(app)
-    
+    def merge_operation(self):
+        """创建合并操作实例"""
+        return MergeOperation(temp_dir=Path("/tmp/test"))
+
     @pytest.fixture
-    def sample_pdf_file(self):
-        """示例PDF文件用于上传测试"""
-        # 准备测试用PDF文件
-        return ("test.pdf", open("tests/fixtures/sample.pdf", "rb"), "application/pdf")
-    
-    def test_compress_pdf_api_endpoint(self, client, sample_pdf_file):
-        """测试PDF压缩API端点"""
-        response = client.post(
-            "/api/v1/pdf/compress",
-            files={"file": sample_pdf_file},
-            data={
-                "quality": 0.7,
-                "compress_images": True,
-                "remove_metadata": False
+    def sample_files(self):
+        """创建示例文件列表"""
+        return [
+            Path("tests/fixtures/sample1.pdf"),
+            Path("tests/fixtures/sample2.pdf")
+        ]
+
+    def test_execute_success(self, merge_operation, sample_files):
+        """测试成功合并"""
+        options = MergeOptions(output_filename="merged.pdf")
+
+        with patch.object(merge_operation, '_perform_merge') as mock_merge:
+            mock_merge.return_value = Path("/tmp/merged.pdf")
+
+            result = merge_operation.execute(sample_files, options)
+
+            assert result.success is True
+            assert result.output_file == Path("/tmp/merged.pdf")
+            mock_merge.assert_called_once_with(sample_files, options)
+
+    def test_execute_with_invalid_files(self, merge_operation):
+        """测试无效文件处理"""
+        invalid_files = [Path("nonexistent.pdf")]
+        options = MergeOptions(output_filename="merged.pdf")
+
+        with pytest.raises(PDFValidationError):
+            merge_operation.execute(invalid_files, options)
+
+    def test_validate_options_success(self, merge_operation):
+        """测试选项验证成功"""
+        options = MergeOptions(output_filename="valid.pdf")
+        assert merge_operation.validate_options(options) is True
+
+    def test_validate_options_failure(self, merge_operation):
+        """测试选项验证失败"""
+        options = MergeOptions(output_filename="")
+        assert merge_operation.validate_options(options) is False
+```
+
+#### 2. **集成测试**
+```python
+# tests/integration/test_pdf_processor.py
+import pytest
+from pathlib import Path
+
+from pdftool.core.processor import PDFProcessor
+from pdftool.common.models import MergeOptions
+
+class TestPDFProcessorIntegration:
+    """PDF处理器集成测试"""
+
+    @pytest.fixture
+    def processor(self):
+        """创建PDF处理器"""
+        return PDFProcessor(temp_dir=Path("/tmp/test"))
+
+    def test_end_to_end_merge(self, processor):
+        """端到端合并测试"""
+        # 准备测试文件
+        files = [
+            Path("tests/fixtures/document1.pdf"),
+            Path("tests/fixtures/document2.pdf")
+        ]
+
+        options = MergeOptions(
+            output_filename="integration_test_merged.pdf",
+            preserve_bookmarks=True
+        )
+
+        # 执行操作
+        result = processor.execute_operation("merge", files, options)
+
+        # 验证结果
+        assert result.success is True
+        assert result.output_file.exists()
+        assert result.output_file.stat().st_size > 0
+
+        # 清理
+        result.output_file.unlink()
+```
+
+#### 3. **性能测试**
+```python
+# tests/performance/test_performance.py
+import pytest
+import time
+from pathlib import Path
+
+from pdftool.core.processor import PDFProcessor
+
+class TestPerformance:
+    """性能测试"""
+
+    @pytest.mark.performance
+    def test_merge_performance(self):
+        """测试合并操作性能"""
+        processor = PDFProcessor()
+
+        # 准备大量文件
+        files = [Path(f"tests/fixtures/large_document_{i}.pdf") for i in range(10)]
+
+        start_time = time.time()
+        result = processor.execute_operation("merge", files, MergeOptions())
+        end_time = time.time()
+
+        # 性能断言
+        execution_time = end_time - start_time
+        assert execution_time < 30.0  # 应在30秒内完成
+        assert result.success is True
+```
+
+### 错误处理策略
+
+#### 1. **异常层次结构**
+```python
+# src/pdftool/common/exceptions.py
+class PDFToolError(Exception):
+    """PDFTool基础异常"""
+
+    def __init__(self, message: str, error_code: str = None):
+        super().__init__(message)
+        self.message = message
+        self.error_code = error_code or "UNKNOWN_ERROR"
+
+class PDFValidationError(PDFToolError):
+    """PDF验证异常"""
+
+    def __init__(self, message: str, file_path: Path = None):
+        super().__init__(message, "VALIDATION_ERROR")
+        self.file_path = file_path
+
+class PDFProcessingError(PDFToolError):
+    """PDF处理异常"""
+
+    def __init__(self, message: str, operation: str = None):
+        super().__init__(message, "PROCESSING_ERROR")
+        self.operation = operation
+
+class PDFFileNotFoundError(PDFValidationError):
+    """PDF文件未找到异常"""
+
+    def __init__(self, file_path: Path):
+        super().__init__(f"PDF file not found: {file_path}", file_path)
+        self.error_code = "FILE_NOT_FOUND"
+```
+
+#### 2. **全局错误处理**
+```python
+# src/pdftool/interfaces/web/middleware/error_handler.py
+from fastapi import Request, HTTPException
+from fastapi.responses import JSONResponse
+
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """全局异常处理器"""
+
+    # PDFTool业务异常
+    if isinstance(exc, PDFToolError):
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": {
+                    "code": exc.error_code,
+                    "message": exc.message,
+                    "type": exc.__class__.__name__
+                }
             }
         )
-        
-        assert response.status_code == 200
-        assert response.headers["content-type"] == "application/pdf"
-        assert "X-Original-Size" in response.headers
-        assert "X-Compressed-Size" in response.headers
-        assert "X-Compression-Ratio" in response.headers
-    
-    def test_compress_pdf_web_page(self, client):
-        """测试PDF压缩Web页面"""
-        response = client.get("/compress")
-        
-        assert response.status_code == 200
-        assert "text/html" in response.headers["content-type"]
-        assert "PDF压缩" in response.text
-    
-    def test_compress_pdf_invalid_file(self, client):
-        """测试上传无效文件"""
-        fake_file = ("test.txt", io.BytesIO(b"not a pdf"), "text/plain")
-        
-        response = client.post(
-            "/api/v1/pdf/compress",
-            files={"file": fake_file},
-            data={"quality": 0.7}
+
+    # HTTP异常
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error": {
+                    "code": "HTTP_ERROR",
+                    "message": exc.detail
+                }
+            }
         )
-        
-        assert response.status_code == 400
-    
-    def test_compress_pdf_invalid_quality(self, client, sample_pdf_file):
-        """测试无效的压缩质量参数"""
-        response = client.post(
-            "/api/v1/pdf/compress",
-            files={"file": sample_pdf_file},
-            data={"quality": 1.5}  # 超出范围
-        )
-        
-        assert response.status_code == 422  # Validation error
-```
 
-#### 4. 更新依赖 (`requirements.txt`)
-
-```txt
-# 现有依赖...
-
-# PDF压缩额外依赖
-Pillow>=9.0.0          # 图片处理
-reportlab>=3.6.0       # PDF生成和处理增强
-```
-
-#### 5. 更新文档和示例
-
-在主页面的功能选择卡片中添加压缩功能：
-
-```html
-<!-- api/templates/index.html 更新 -->
-<div class="function-card" onclick="goToFunction('compress')">
-    <div class="card-icon">🗜️</div>
-    <h3>PDF压缩</h3>
-    <p>减少PDF文件大小，支持多种压缩选项</p>
-    <div class="card-features">
-        <span>• 智能压缩</span>
-        <span>• 质量可调</span>
-        <span>• 批量处理</span>
-    </div>
-</div>
+    # 未知异常
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "An internal error occurred"
+            }
+        }
+    )
 ```
 
 ---
 
-### 🔄 第六步：验证和部署
+## 🌐 API接口设计
 
-#### 1. 功能验证清单
+### RESTful API规范
 
-```markdown
-- [ ] 核心压缩引擎功能正常
-- [ ] API端点响应正确
-- [ ] Web界面交互流畅
-- [ ] GUI应用功能完整
-- [ ] 单元测试全部通过
-- [ ] 集成测试验证通过
-- [ ] 性能测试满足要求
-- [ ] 错误处理覆盖完整
-- [ ] 文档更新同步
-- [ ] 配置项正确设置
+#### 1. **URL设计规范**
+```
+# 资源导向的URL设计
+GET    /api/v1/documents                    # 获取文档列表
+POST   /api/v1/documents                    # 上传文档
+GET    /api/v1/documents/{id}               # 获取特定文档
+DELETE /api/v1/documents/{id}               # 删除文档
+
+# 操作导向的URL设计
+POST   /api/v1/documents/merge              # 合并文档
+POST   /api/v1/documents/split              # 拆分文档
+POST   /api/v1/documents/watermark          # 添加水印
+GET    /api/v1/documents/{id}/info          # 获取文档信息
+
+# 系统功能
+GET    /api/v1/health                       # 健康检查
+GET    /api/v1/operations                   # 可用操作列表
+GET    /api/v1/docs                         # API文档
 ```
 
-#### 2. 性能测试
+#### 2. **请求/响应格式**
+```python
+# 统一的API响应格式
+class APIResponse(BaseModel):
+    """标准API响应格式"""
+    success: bool
+    data: Optional[Any] = None
+    error: Optional[ErrorDetail] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+class ErrorDetail(BaseModel):
+    """错误详情"""
+    code: str
+    message: str
+    field: Optional[str] = None
+
+# 合并请求模型
+class MergeRequest(BaseModel):
+    """合并请求"""
+    output_filename: Optional[str] = None
+    preserve_bookmarks: bool = True
+    add_toc: bool = False
+    toc_title: str = "Table of Contents"
+
+# 合并响应模型
+class MergeResponse(BaseModel):
+    """合并响应"""
+    output_file_url: str
+    file_size: int
+    page_count: int
+    processing_time: float
+```
+
+#### 3. **版本管理**
+```python
+# src/pdftool/interfaces/web/routers/v1/pdf.py
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/api/v1", tags=["PDF Operations"])
+
+@router.post("/documents/merge")
+async def merge_documents_v1(request: MergeRequestV1):
+    """V1版本的合并接口"""
+    pass
+
+# src/pdftool/interfaces/web/routers/v2/pdf.py
+router = APIRouter(prefix="/api/v2", tags=["PDF Operations"])
+
+@router.post("/documents/merge")
+async def merge_documents_v2(request: MergeRequestV2):
+    """V2版本的合并接口 - 支持更多选项"""
+    pass
+```
+
+### 异步处理设计
+
+#### 1. **长时间操作处理**
+```python
+import asyncio
+from uuid import uuid4
+from typing import Dict
+
+class AsyncOperationManager:
+    """异步操作管理器"""
+
+    def __init__(self):
+        self._operations: Dict[str, asyncio.Task] = {}
+        self._results: Dict[str, OperationResult] = {}
+
+    async def submit_operation(self, operation_type: str, *args, **kwargs) -> str:
+        """提交异步操作"""
+
+        operation_id = str(uuid4())
+
+        # 创建异步任务
+        task = asyncio.create_task(
+            self._execute_operation(operation_id, operation_type, *args, **kwargs)
+        )
+
+        self._operations[operation_id] = task
+        return operation_id
+
+    async def get_operation_status(self, operation_id: str) -> OperationStatus:
+        """获取操作状态"""
+
+        if operation_id not in self._operations:
+            return OperationStatus(status="not_found")
+
+        task = self._operations[operation_id]
+
+        if task.done():
+            if operation_id in self._results:
+                result = self._results[operation_id]
+                return OperationStatus(
+                    status="completed",
+                    result=result
+                )
+            else:
+                return OperationStatus(status="failed")
+        else:
+            return OperationStatus(status="running")
+
+    async def _execute_operation(self, operation_id: str, operation_type: str, *args, **kwargs):
+        """执行具体操作"""
+        try:
+            processor = PDFProcessor()
+            result = await processor.execute_operation_async(operation_type, *args, **kwargs)
+            self._results[operation_id] = result
+        except Exception as e:
+            self._results[operation_id] = OperationResult(success=False, error=str(e))
+        finally:
+            # 清理任务引用
+            self._operations.pop(operation_id, None)
+
+# API端点
+@router.post("/documents/merge/async")
+async def merge_documents_async(request: MergeRequest):
+    """异步合并文档"""
+
+    operation_id = await async_manager.submit_operation(
+        "merge",
+        request.files,
+        request.options
+    )
+
+    return {"operation_id": operation_id}
+
+@router.get("/operations/{operation_id}")
+async def get_operation_status(operation_id: str):
+    """获取操作状态"""
+
+    status = await async_manager.get_operation_status(operation_id)
+    return status
+```
+
+#### 2. **WebSocket支持**
+```python
+# src/pdftool/interfaces/web/websocket.py
+from fastapi import WebSocket
+
+class OperationWebSocket:
+    """操作进度WebSocket"""
+
+    def __init__(self):
+        self._connections: Dict[str, WebSocket] = {}
+
+    async def connect(self, websocket: WebSocket, operation_id: str):
+        """连接WebSocket"""
+        await websocket.accept()
+        self._connections[operation_id] = websocket
+
+    async def disconnect(self, operation_id: str):
+        """断开连接"""
+        self._connections.pop(operation_id, None)
+
+    async def send_progress(self, operation_id: str, progress: OperationProgress):
+        """发送进度更新"""
+        if operation_id in self._connections:
+            websocket = self._connections[operation_id]
+            await websocket.send_json(progress.dict())
+
+@router.websocket("/operations/{operation_id}/ws")
+async def operation_progress_websocket(websocket: WebSocket, operation_id: str):
+    """操作进度WebSocket端点"""
+
+    await websocket_manager.connect(websocket, operation_id)
+
+    try:
+        while True:
+            # 保持连接
+            await websocket.receive_text()
+    except Exception:
+        pass
+    finally:
+        await websocket_manager.disconnect(operation_id)
+```
+
+---
+
+## 🔌 插件系统架构
+
+### 插件生命周期
 
 ```python
-# tests/test_compression_performance.py
-import time
-import pytest
-from pathlib import Path
+class PluginLifecycle:
+    """插件生命周期管理"""
 
-def test_compression_performance():
-    """测试压缩性能"""
-    large_pdf = Path("tests/fixtures/large_sample.pdf")  # 10MB+ PDF
-    pdf_ops = PDFOperations()
-    
-    start_time = time.time()
-    result = pdf_ops.compress_pdf(large_pdf, CompressionOptions(quality=0.7))
-    end_time = time.time()
-    
-    processing_time = end_time - start_time
-    
-    assert result.success
-    assert processing_time < 30  # 应在30秒内完成
-    assert result.compression_ratio > 0.1  # 至少压缩10%
+    def __init__(self):
+        self.loader = PluginLoader()
+        self.registry = PluginRegistry()
+        self.event_manager = PluginEventManager()
+
+    async def initialize_plugin_system(self):
+        """初始化插件系统"""
+
+        # 1. 扫描插件目录
+        plugin_dirs = self._get_plugin_directories()
+
+        # 2. 加载插件
+        for plugin_dir in plugin_dirs:
+            plugins = self.loader.load_plugins_from_directory(plugin_dir)
+
+            for plugin in plugins:
+                # 3. 注册插件
+                self.registry.register_plugin(plugin)
+
+                # 4. 初始化插件
+                try:
+                    await self._initialize_plugin(plugin)
+                    self.event_manager.emit(PluginInitializedEvent(plugin))
+                except Exception as e:
+                    self.event_manager.emit(PluginErrorEvent(plugin, e))
+
+    async def _initialize_plugin(self, plugin: BasePlugin):
+        """初始化单个插件"""
+
+        # 加载插件配置
+        config = self._load_plugin_config(plugin.name)
+
+        # 初始化插件
+        plugin.initialize(config)
+
+        # 验证插件
+        self._validate_plugin(plugin)
+
+    def _validate_plugin(self, plugin: BasePlugin):
+        """验证插件有效性"""
+
+        # 检查必要方法
+        required_methods = ['initialize', 'shutdown']
+        for method in required_methods:
+            if not hasattr(plugin, method):
+                raise PluginValidationError(f"Plugin missing required method: {method}")
+
+        # 检查版本兼容性
+        if not self._is_version_compatible(plugin.version):
+            raise PluginVersionError(f"Plugin version {plugin.version} not compatible")
 ```
 
-#### 3. 部署更新
+### 热加载机制
 
-更新 `Makefile` 添加压缩功能相关命令：
+```python
+class HotReloadManager:
+    """插件热加载管理器"""
 
-```makefile
-# 压缩功能测试
-test-compression:
-	pytest tests/test_compression*.py -v
+    def __init__(self, plugin_lifecycle: PluginLifecycle):
+        self.lifecycle = plugin_lifecycle
+        self.file_watcher = FileWatcher()
+        self._watching = False
 
-# 压缩性能测试
-test-compression-perf:
-	pytest tests/test_compression_performance.py -v --benchmark
+    def start_watching(self):
+        """开始监控插件文件变化"""
+        if self._watching:
+            return
 
-# 构建包含压缩功能的镜像
-docker-build-with-compression:
-	docker build -t pdftool:compression-enabled .
+        plugin_dirs = self._get_plugin_directories()
+        for plugin_dir in plugin_dirs:
+            self.file_watcher.watch(plugin_dir, self._on_file_changed)
+
+        self._watching = True
+
+    def stop_watching(self):
+        """停止监控"""
+        self.file_watcher.stop()
+        self._watching = False
+
+    async def _on_file_changed(self, file_path: Path, event_type: str):
+        """文件变化回调"""
+
+        if event_type == "modified" and file_path.suffix == ".py":
+            await self._reload_plugin(file_path)
+        elif event_type == "deleted":
+            await self._unload_plugin(file_path)
+
+    async def _reload_plugin(self, file_path: Path):
+        """重新加载插件"""
+
+        try:
+            # 1. 卸载旧插件
+            old_plugin = self._find_plugin_by_file(file_path)
+            if old_plugin:
+                await self._unload_plugin_instance(old_plugin)
+
+            # 2. 重新加载模块
+            module = importlib.reload(importlib.import_module(self._get_module_name(file_path)))
+
+            # 3. 创建新插件实例
+            plugin_class = self._find_plugin_class(module)
+            if plugin_class:
+                new_plugin = plugin_class()
+
+                # 4. 注册和初始化
+                self.lifecycle.registry.register_plugin(new_plugin)
+                await self.lifecycle._initialize_plugin(new_plugin)
+
+                self.lifecycle.event_manager.emit(PluginReloadedEvent(new_plugin))
+
+        except Exception as e:
+            self.lifecycle.event_manager.emit(PluginReloadErrorEvent(file_path, e))
+```
+
+### 插件隔离
+
+```python
+class PluginSandbox:
+    """插件沙箱 - 提供安全的执行环境"""
+
+    def __init__(self, plugin: BasePlugin):
+        self.plugin = plugin
+        self.resource_limits = ResourceLimits()
+        self.permission_manager = PermissionManager()
+
+    async def execute_in_sandbox(self, func: Callable, *args, **kwargs):
+        """在沙箱中执行插件代码"""
+
+        # 1. 检查权限
+        if not self.permission_manager.check_permission(self.plugin, func.__name__):
+            raise PluginPermissionError(f"Plugin {self.plugin.name} lacks permission for {func.__name__}")
+
+        # 2. 设置资源限制
+        with self.resource_limits:
+            try:
+                # 3. 执行代码
+                if asyncio.iscoroutinefunction(func):
+                    result = await func(*args, **kwargs)
+                else:
+                    result = func(*args, **kwargs)
+
+                return result
+
+            except Exception as e:
+                # 4. 错误处理
+                self._handle_plugin_error(e)
+                raise
+
+    def _handle_plugin_error(self, error: Exception):
+        """处理插件错误"""
+
+        # 记录错误
+        logger.error(f"Plugin {self.plugin.name} error: {error}")
+
+        # 如果是严重错误，可能需要卸载插件
+        if isinstance(error, (MemoryError, SystemError)):
+            self._mark_plugin_for_unload()
+
+class ResourceLimits:
+    """资源限制管理"""
+
+    def __init__(self,
+                 max_memory: int = 100 * 1024 * 1024,  # 100MB
+                 max_cpu_time: float = 10.0):           # 10秒
+        self.max_memory = max_memory
+        self.max_cpu_time = max_cpu_time
+
+    def __enter__(self):
+        """设置资源限制"""
+        import resource
+
+        # 设置内存限制
+        resource.setrlimit(resource.RLIMIT_AS, (self.max_memory, self.max_memory))
+
+        # 设置CPU时间限制
+        resource.setrlimit(resource.RLIMIT_CPU, (int(self.max_cpu_time), int(self.max_cpu_time)))
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """恢复资源限制"""
+        import resource
+
+        # 恢复默认限制
+        resource.setrlimit(resource.RLIMIT_AS, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+        resource.setrlimit(resource.RLIMIT_CPU, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 ```
 
 ---
 
-### 🚀 总结
+## 📊 配置管理
 
-通过以上详细步骤，我们成功为PDFTool添加了完整的PDF压缩功能：
+### 环境配置
 
-1. **核心层**: 实现了`compress_pdf`方法和相关数据模型
-2. **API层**: 创建了服务类、路由端点和Web界面  
-3. **GUI层**: 添加了压缩功能标签页和用户界面
-4. **配置**: 增加了压缩相关的配置选项
-5. **测试**: 编写了完整的单元测试和集成测试
-6. **文档**: 更新了相关文档和使用说明
+```python
+# src/pdftool/config/environments/base.py
+class BaseSettings(BaseSettings):
+    """基础配置"""
 
-这个扩展开发流程可以作为添加其他新功能（如PDF水印、OCR识别、格式转换等）的标准模板。每个新功能都应该遵循相同的分层架构和开发规范，确保代码的一致性和可维护性。
+    # 应用信息
+    app_name: str = "PDFTool"
+    app_version: str = "1.0.0"
+    debug: bool = False
+
+    # 服务配置
+    host: str = "0.0.0.0"
+    port: int = 8000
+    workers: int = 1
+
+    # 安全配置
+    secret_key: str = Field(..., env="SECRET_KEY")
+    allowed_hosts: List[str] = ["*"]
+    cors_origins: List[str] = ["*"]
+
+    # 文件配置
+    temp_dir: Path = Path("temp")
+    max_file_size: int = 100 * 1024 * 1024  # 100MB
+    allowed_extensions: List[str] = [".pdf"]
+
+    # 日志配置
+    log_level: str = "INFO"
+    log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+    class Config:
+        env_prefix = "PDFTOOL_"
+        env_file = ".env"
+
+# src/pdftool/config/environments/development.py
+class DevelopmentSettings(BaseSettings):
+    """开发环境配置"""
+
+    debug: bool = True
+    log_level: str = "DEBUG"
+
+    # 开发环境允许更大的文件
+    max_file_size: int = 500 * 1024 * 1024  # 500MB
+
+    # 开发环境允许热重载
+    hot_reload: bool = True
+
+# src/pdftool/config/environments/production.py
+class ProductionSettings(BaseSettings):
+    """生产环境配置"""
+
+    debug: bool = False
+    workers: int = 4
+
+    # 生产环境安全配置
+    allowed_hosts: List[str] = Field(..., env="ALLOWED_HOSTS")
+    cors_origins: List[str] = Field(..., env="CORS_ORIGINS")
+
+    # 生产环境性能配置
+    enable_compression: bool = True
+    cache_enabled: bool = True
+    rate_limiting: bool = True
+
+# src/pdftool/config/settings.py
+def get_settings() -> BaseSettings:
+    """获取环境配置"""
+
+    env = os.getenv("ENVIRONMENT", "development")
+
+    if env == "development":
+        return DevelopmentSettings()
+    elif env == "production":
+        return ProductionSettings()
+    elif env == "testing":
+        return TestingSettings()
+    else:
+        return BaseSettings()
+```
+
+### 功能开关
+
+```python
+class FeatureFlags:
+    """功能开关管理"""
+
+    def __init__(self, settings: BaseSettings):
+        self.settings = settings
+        self._flags = self._load_feature_flags()
+
+    def _load_feature_flags(self) -> Dict[str, bool]:
+        """加载功能开关配置"""
+
+        # 从环境变量加载
+        flags = {}
+        for key, value in os.environ.items():
+            if key.startswith("FEATURE_"):
+                flag_name = key[8:].lower()  # 移除FEATURE_前缀
+                flags[flag_name] = value.lower() in ("true", "1", "yes")
+
+        # 从配置文件加载
+        config_file = Path("config/features.yaml")
+        if config_file.exists():
+            with open(config_file) as f:
+                file_flags = yaml.safe_load(f)
+                flags.update(file_flags)
+
+        return flags
+
+    def is_enabled(self, feature: str) -> bool:
+        """检查功能是否启用"""
+        return self._flags.get(feature, False)
+
+    def enable_feature(self, feature: str):
+        """启用功能"""
+        self._flags[feature] = True
+
+    def disable_feature(self, feature: str):
+        """禁用功能"""
+        self._flags[feature] = False
+
+# 使用示例
+feature_flags = FeatureFlags(get_settings())
+
+# 在代码中使用功能开关
+if feature_flags.is_enabled("async_operations"):
+    result = await async_operation()
+else:
+    result = sync_operation()
+
+if feature_flags.is_enabled("experimental_compression"):
+    use_experimental_compression()
+```
 
 ---
 
-## 📚 附录
+## 🔮 未来演进规划
 
-### 常见问题解答
+### 短期目标 (1-3个月)
 
-#### Q: 如何修改最大文件大小限制？
-A: 设置环境变量 `PDFTOOL_MAX_FILE_SIZE=209715200` (200MB)
+#### 1. **性能优化**
+```python
+# 并发处理优化
+class ConcurrentPDFProcessor:
+    """并发PDF处理器"""
 
-#### Q: 如何启用调试模式？
-A: 设置 `PDFTOOL_DEBUG=true`
+    def __init__(self, max_workers: int = 4):
+        self.executor = ThreadPoolExecutor(max_workers=max_workers)
+        self.semaphore = asyncio.Semaphore(max_workers)
 
-#### Q: 如何自定义临时文件目录？
-A: 设置 `PDFTOOL_TEMP_DIR=/path/to/temp`
+    async def process_batch(self, operations: List[PDFOperation]) -> List[OperationResult]:
+        """批量处理PDF操作"""
 
-#### Q: 如何添加新的PDF处理功能？
-A: 参考[扩展开发](#扩展开发)章节
+        async with self.semaphore:
+            tasks = []
+            for operation in operations:
+                task = asyncio.create_task(self._process_single(operation))
+                tasks.append(task)
 
-### 相关链接
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            return results
 
-- **项目仓库**: https://github.com/Rem-yl/PDFTool
-- **问题反馈**: https://github.com/Rem-yl/PDFTool/issues
-- **PyPDF2文档**: https://pypdf2.readthedocs.io/
-- **FastAPI文档**: https://fastapi.tiangolo.com/
+# 缓存机制
+class PDFOperationCache:
+    """PDF操作结果缓存"""
 
-### 版本历史
+    def __init__(self, cache_backend: ICacheBackend):
+        self.cache = cache_backend
 
-- **v1.0.0**: 初始版本，基础PDF操作功能
-- **v1.1.0**: 添加Web界面功能选择架构
-- **v1.2.0**: 计划添加PDF压缩和OCR功能
+    async def get_cached_result(self, operation_hash: str) -> Optional[OperationResult]:
+        """获取缓存结果"""
+        return await self.cache.get(f"pdf_op:{operation_hash}")
+
+    async def cache_result(self, operation_hash: str, result: OperationResult):
+        """缓存操作结果"""
+        await self.cache.set(f"pdf_op:{operation_hash}", result, ttl=3600)
+```
+
+#### 2. **监控和指标**
+```python
+# 指标收集
+class MetricsCollector:
+    """指标收集器"""
+
+    def __init__(self):
+        self.operation_counter = Counter("pdf_operations_total", ["operation_type", "status"])
+        self.operation_duration = Histogram("pdf_operation_duration_seconds", ["operation_type"])
+        self.file_size_histogram = Histogram("pdf_file_size_bytes", ["operation_type"])
+
+    def record_operation(self, operation_type: str, status: str, duration: float, file_size: int):
+        """记录操作指标"""
+        self.operation_counter.labels(operation_type=operation_type, status=status).inc()
+        self.operation_duration.labels(operation_type=operation_type).observe(duration)
+        self.file_size_histogram.labels(operation_type=operation_type).observe(file_size)
+
+# 健康检查
+class HealthChecker:
+    """健康检查器"""
+
+    async def check_system_health(self) -> HealthStatus:
+        """检查系统健康状态"""
+
+        checks = {
+            "disk_space": await self._check_disk_space(),
+            "memory_usage": await self._check_memory_usage(),
+            "pdf_engine": await self._check_pdf_engine(),
+            "plugin_system": await self._check_plugin_system()
+        }
+
+        overall_status = "healthy" if all(check["status"] == "ok" for check in checks.values()) else "unhealthy"
+
+        return HealthStatus(
+            status=overall_status,
+            checks=checks,
+            timestamp=datetime.utcnow()
+        )
+```
+
+### 中期目标 (3-6个月)
+
+#### 1. **微服务架构**
+```python
+# 服务拆分
+class DocumentService:
+    """文档服务 - 专注于PDF操作"""
+
+    async def merge_documents(self, request: MergeRequest) -> MergeResponse:
+        pass
+
+class StorageService:
+    """存储服务 - 专注于文件管理"""
+
+    async def store_file(self, file: UploadFile) -> FileMetadata:
+        pass
+
+    async def retrieve_file(self, file_id: str) -> File:
+        pass
+
+class NotificationService:
+    """通知服务 - 专注于消息通知"""
+
+    async def send_completion_notification(self, user_id: str, operation_result: OperationResult):
+        pass
+
+# 服务间通信
+class ServiceCommunicator:
+    """服务间通信"""
+
+    def __init__(self, message_broker: IMessageBroker):
+        self.broker = message_broker
+
+    async def send_message(self, service: str, message: ServiceMessage):
+        """发送服务间消息"""
+        await self.broker.publish(f"service.{service}", message)
+
+    async def handle_message(self, service: str, handler: MessageHandler):
+        """处理服务间消息"""
+        await self.broker.subscribe(f"service.{service}", handler)
+```
+
+#### 2. **多格式支持**
+```python
+# 抽象文档接口
+class IDocument(ABC):
+    """文档抽象接口"""
+
+    @abstractmethod
+    def get_page_count(self) -> int:
+        pass
+
+    @abstractmethod
+    def extract_text(self, page: int) -> str:
+        pass
+
+    @abstractmethod
+    def merge_with(self, other: 'IDocument') -> 'IDocument':
+        pass
+
+# PDF文档实现
+class PDFDocument(IDocument):
+    """PDF文档实现"""
+    pass
+
+# Word文档实现
+class WordDocument(IDocument):
+    """Word文档实现"""
+    pass
+
+# 文档工厂
+class DocumentFactory:
+    """文档工厂"""
+
+    def create_document(self, file_path: Path) -> IDocument:
+        """根据文件类型创建文档对象"""
+
+        extension = file_path.suffix.lower()
+
+        if extension == ".pdf":
+            return PDFDocument(file_path)
+        elif extension in [".doc", ".docx"]:
+            return WordDocument(file_path)
+        else:
+            raise UnsupportedDocumentTypeError(f"Unsupported document type: {extension}")
+```
+
+### 长期目标 (6个月+)
+
+#### 1. **AI集成**
+```python
+# AI服务接口
+class IAIService(ABC):
+    """AI服务抽象接口"""
+
+    @abstractmethod
+    async def extract_text_with_ocr(self, image: bytes) -> str:
+        """OCR文本提取"""
+        pass
+
+    @abstractmethod
+    async def classify_document(self, content: str) -> DocumentClassification:
+        """文档分类"""
+        pass
+
+    @abstractmethod
+    async def summarize_document(self, content: str) -> str:
+        """文档摘要"""
+        pass
+
+# OCR操作
+class OCROperation(BasePDFOperation):
+    """OCR操作 - AI驱动"""
+
+    def __init__(self, ai_service: IAIService):
+        super().__init__()
+        self.ai_service = ai_service
+
+    async def execute(self, input_file: Path, options: OCROptions) -> OperationResult:
+        """执行OCR操作"""
+
+        # 1. 将PDF转换为图像
+        images = self._pdf_to_images(input_file)
+
+        # 2. 使用AI进行OCR
+        text_results = []
+        for image in images:
+            text = await self.ai_service.extract_text_with_ocr(image)
+            text_results.append(text)
+
+        # 3. 创建可搜索的PDF
+        searchable_pdf = self._create_searchable_pdf(images, text_results)
+
+        return OperationResult(
+            success=True,
+            output_file=searchable_pdf,
+            metadata={"extracted_text": text_results}
+        )
+
+# 智能文档分析
+class IntelligentDocumentAnalyzer:
+    """智能文档分析器"""
+
+    def __init__(self, ai_service: IAIService):
+        self.ai_service = ai_service
+
+    async def analyze_document(self, document: Path) -> DocumentAnalysis:
+        """分析文档"""
+
+        # 提取文本
+        content = self._extract_text(document)
+
+        # AI分析
+        classification = await self.ai_service.classify_document(content)
+        summary = await self.ai_service.summarize_document(content)
+
+        return DocumentAnalysis(
+            classification=classification,
+            summary=summary,
+            confidence=classification.confidence
+        )
+```
+
+#### 2. **云原生部署**
+```python
+# 容器化配置
+# Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# 安装依赖
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# 复制代码
+COPY src/ ./src/
+COPY config/ ./config/
+
+# 暴露端口
+EXPOSE 8000
+
+# 启动命令
+CMD ["uvicorn", "src.pdftool.interfaces.web.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# Kubernetes部署配置
+# k8s/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pdftool-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pdftool-api
+  template:
+    metadata:
+      labels:
+        app: pdftool-api
+    spec:
+      containers:
+      - name: pdftool-api
+        image: pdftool:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: pdftool-secrets
+              key: database-url
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+# 自动扩缩容
+# k8s/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: pdftool-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pdftool-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+```
+
+#### 3. **多语言支持**
+```python
+# 插件语言绑定
+class LanguageBinding(ABC):
+    """语言绑定抽象基类"""
+
+    @abstractmethod
+    def load_plugin(self, plugin_path: Path) -> IPlugin:
+        """加载插件"""
+        pass
+
+    @abstractmethod
+    def execute_operation(self, plugin: IPlugin, operation: str, *args) -> Any:
+        """执行操作"""
+        pass
+
+class PythonBinding(LanguageBinding):
+    """Python插件绑定"""
+    pass
+
+class JavaScriptBinding(LanguageBinding):
+    """JavaScript插件绑定 - 使用Node.js"""
+
+    def load_plugin(self, plugin_path: Path) -> IPlugin:
+        """加载JavaScript插件"""
+
+        # 启动Node.js进程
+        process = subprocess.Popen([
+            "node",
+            "plugin_runner.js",
+            str(plugin_path)
+        ], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+        return JavaScriptPlugin(process)
+
+class RustBinding(LanguageBinding):
+    """Rust插件绑定 - 使用FFI"""
+
+    def load_plugin(self, plugin_path: Path) -> IPlugin:
+        """加载Rust插件"""
+
+        # 加载动态库
+        lib = ctypes.CDLL(str(plugin_path))
+        return RustPlugin(lib)
+```
 
 ---
 
-*此文档由 PDFTool 开发团队维护，最后更新：2024年*
+## 📝 结语
+
+PDFTool的架构设计体现了现代软件开发的最佳实践：
+
+### 核心价值
+
+1. **可扩展性至上** - 通过插件架构和领域驱动设计，确保系统能够随业务发展而持续演进
+2. **质量第一** - 完整的测试策略、错误处理和监控确保系统稳定可靠
+3. **开发者友好** - 清晰的代码组织、详细的文档和丰富的示例降低维护成本
+4. **面向未来** - 模块化设计和技术选型确保系统能够适应未来的技术变化
+
+### 持续改进
+
+这份文档将随着项目的发展而不断更新，反映最新的架构决策和最佳实践。我们鼓励所有开发者：
+
+- **遵循设计原则** - 在添加新功能时始终考虑SOLID原则和架构约束
+- **编写质量代码** - 保持高测试覆盖率和代码质量标准
+- **文档先行** - 重要的设计决策和代码更改都应更新相关文档
+- **持续学习** - 关注新的架构模式和技术趋势，适时引入到项目中
+
+PDFTool不仅是一个PDF处理工具，更是现代软件架构设计的实践范例。希望这份文档能够帮助团队构建更加优秀的软件系统。
+
+---
+
+*最后更新: 2025-09-17*
+*维护者: PDFTool架构团队*
