@@ -7,9 +7,9 @@ from typing import List
 
 from fastapi import HTTPException, UploadFile
 
-from ...core.exceptions import PDFToolError
-from ...core.models import MergeOptions, OperationResult
-from ...utils.logging import get_logger
+from ....common.exceptions import PDFToolError
+from ....common.models import MergeOptions, OperationResult
+from ....common.utils.logging import get_logger
 from ..interfaces import BaseServiceHandler
 from ..schemas.requests import PDFMergeRequest
 

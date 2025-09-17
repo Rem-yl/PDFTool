@@ -7,9 +7,9 @@ from pathlib import Path
 
 import PyPDF2
 
-from ..exceptions import PDFProcessingError
-from ..interfaces import BasePDFOperation
-from ..models import OperationResult, PDFInfo
+from ....common.exceptions import PDFProcessingError
+from ....common.interfaces import BasePDFOperation
+from ....common.models import OperationResult, PDFInfo
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ Service manager for the new extensible architecture
 from pathlib import Path
 from typing import Optional
 
-from ..core.pdf_processor import PDFProcessor
+from ...core.processor import PDFProcessor
 from .service_registry import ServiceRegistry
 
 

@@ -9,7 +9,7 @@ from typing import Callable
 from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from ...utils.logging import get_logger
+from ....common.utils.logging import get_logger
 
 logger = get_logger("api.requests")
 

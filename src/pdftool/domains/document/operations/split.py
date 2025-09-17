@@ -8,9 +8,9 @@ from uuid import uuid4
 
 import PyPDF2
 
-from ..exceptions import PDFProcessingError, PDFValidationError
-from ..interfaces import BasePDFOperation
-from ..models import OperationResult, PageSelectionMode, PageSelectionOptions
+from ....common.exceptions import PDFProcessingError, PDFValidationError
+from ....common.interfaces import BasePDFOperation
+from ....common.models import OperationResult, PageSelectionMode, PageSelectionOptions
 
 logger = logging.getLogger(__name__)
 

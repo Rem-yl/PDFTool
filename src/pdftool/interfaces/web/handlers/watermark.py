@@ -6,15 +6,15 @@ from typing import List, Optional
 
 from fastapi import HTTPException, UploadFile
 
-from ...core.exceptions import PDFToolError
-from ...core.models import (
+from ....common.exceptions import PDFToolError
+from ....common.models import (
     OperationResult,
     PageSelectionMode,
     WatermarkOptions,
     WatermarkPosition,
     WatermarkType,
 )
-from ...utils.logging import get_logger
+from ....common.utils.logging import get_logger
 from ..interfaces import BaseServiceHandler
 from ..schemas.requests import WatermarkRequest
 

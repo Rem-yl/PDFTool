@@ -4,9 +4,9 @@ PDFTool API主入口文件
 
 import uvicorn
 
-from ..config.settings import settings
-from ..utils.logging import get_logger
-from .app import app
+from ...common.utils.logging import get_logger
+from ...config.settings import settings
+from .application import app
 
 logger = get_logger("api.main")
 
@@ -23,7 +23,7 @@ def main() -> None:
 
     try:
         uvicorn.run(
-            "pdftool.api.app:app",
+            "pdftool.interfaces.web.application:app",
             host=settings.api_host,
             port=settings.api_port,
             reload=settings.debug,

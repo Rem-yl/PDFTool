@@ -7,9 +7,9 @@ from typing import Generator
 
 from fastapi import Depends, HTTPException, status
 
-from ..config.settings import settings
-from ..core.pdf_processor import PDFProcessor
-from ..utils.logging import get_logger
+from ...common.utils.logging import get_logger
+from ...config.settings import settings
+from ...core.processor import PDFProcessor
 from .service_manager import ServiceManager
 
 logger = get_logger("api.dependencies")

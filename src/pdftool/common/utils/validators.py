@@ -6,8 +6,8 @@ import mimetypes
 from pathlib import Path
 from typing import List
 
-from ..config.settings import settings
-from ..core.exceptions import PDFValidationError
+from ...config.settings import settings
+from ..exceptions import PDFValidationError
 
 
 def validate_file_size(file_path: Path) -> None:

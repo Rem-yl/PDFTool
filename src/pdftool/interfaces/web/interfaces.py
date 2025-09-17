@@ -9,8 +9,8 @@ from typing import Any, List
 
 from fastapi import HTTPException, UploadFile
 
-from ..core.models import OperationResult
-from ..utils.logging import get_logger
+from ...common.models import OperationResult
+from ...common.utils.logging import get_logger
 
 logger = get_logger("api.interfaces")
 

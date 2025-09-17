@@ -2,8 +2,17 @@
 Configuration settings for PDFTool
 """
 
+import os
 from pathlib import Path
 from typing import List, Optional
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+
+    def load_dotenv(*args, **kwargs):
+        pass
+
 
 try:
     from pydantic import Field
@@ -22,6 +31,12 @@ except ImportError:
             return default
 
 
+# Load .env file
+_env_file_path = Path(__file__).parent.parent.parent.parent / ".env"
+if _env_file_path.exists():
+    load_dotenv(_env_file_path)
+
+
 class Settings(BaseSettings):
     """Application settings with environment variable support"""
 
@@ -37,7 +52,7 @@ class Settings(BaseSettings):
 
     # API settings
     api_host: str = Field(default="0.0.0.0")
-    api_port: int = Field(default=8000)
+    api_port: int = Field(default=8001)
     api_workers: int = Field(default=1)
 
     # Security

@@ -20,9 +20,6 @@ from .core.factory import PDFOperationFactory
 from .core.processor import PDFProcessor
 from .core.registry import ComponentRegistry
 
-# API Components
-from .interfaces.web.service_manager import ServiceManager
-
 __all__ = [
     # Core processing
     "PDFProcessor",
@@ -31,8 +28,6 @@ __all__ = [
     # Interfaces for extension
     "IPDFOperation",
     "BasePDFOperation",
-    # API Management
-    "ServiceManager",
     # Exceptions
     "PDFToolError",
     "PDFValidationError",

@@ -7,8 +7,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from ..config.settings import settings
-from ..utils.logging import get_logger, setup_logging
+from ...common.utils.logging import get_logger, setup_logging
+from ...config.settings import settings
 from .middleware.cors import setup_cors
 from .middleware.error_handler import ErrorHandlerMiddleware, setup_error_handlers
 from .middleware.logging import setup_logging_middleware

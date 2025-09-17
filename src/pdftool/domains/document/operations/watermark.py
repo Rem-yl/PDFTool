@@ -13,9 +13,9 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
-from ..exceptions import PDFProcessingError, PDFValidationError
-from ..interfaces import BasePDFOperation
-from ..models import (
+from ....common.exceptions import PDFProcessingError, PDFValidationError
+from ....common.interfaces import BasePDFOperation
+from ....common.models import (
     OperationResult,
     PageSelectionMode,
     WatermarkOptions,

@@ -22,8 +22,9 @@ help:
 	@echo "  build       Build package distributions"
 	@echo ""
 	@echo "Run:"
-	@echo "  run-gui     Start GUI application"
-	@echo "  run-api     Start API server"
+	@echo "  run-web     Start Web application"
+	@echo "  run-web-dev Start Web server with hot reload"
+	@echo "  dev-web     Start development server with debug mode"
 	@echo ""
 	@echo "Docker:"
 	@echo "  docker-build Build Docker image"
@@ -34,7 +35,7 @@ install:
 	pip install -e .
 
 install-dev:
-	pip install -e ".[dev,api]"
+	pip install -e ".[dev]"
 	pre-commit install
 
 # Testing
@@ -70,15 +71,12 @@ clean:
 build: clean
 	python -m build
 
-# Run applications
-run-gui:
-	python -m pdftool.gui.main
+# Run Web application
+run-web:
+	python -m pdftool
 
-run-api:
-	python -m pdftool.api.main
-
-run-api-dev:
-	uvicorn pdftool.api.main:app --reload --host 0.0.0.0 --port 8000
+run-web-dev:
+	uvicorn pdftool.interfaces.web.application:app --reload --host 0.0.0.0 --port 8001
 
 # Docker
 docker-build:
@@ -88,8 +86,8 @@ docker-run:
 	docker run -p 8000:8000 pdftool:latest
 
 # Development server with hot reload
-dev-api:
-	PDFTOOL_DEBUG=true uvicorn pdftool.api.main:app --reload --host 0.0.0.0 --port 8000
+dev-web:
+	PDFTOOL_DEBUG=true uvicorn pdftool.interfaces.web.application:app --reload --host 0.0.0.0 --port 8001
 
 # Check dependencies for security vulnerabilities
 security-check:

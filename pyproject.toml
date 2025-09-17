@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pdftool"
 version = "1.0.0"
-description = "A comprehensive PDF manipulation tool with GUI and API interfaces"
+description = "A comprehensive PDF manipulation tool with Web API interface and plugin architecture"
 readme = "README.md"
 authors = [{name = "PDFTool Team", email = "contact@pdftool.com"}]
 license = {text = "MIT"}
@@ -30,6 +30,9 @@ dependencies = [
     "python-multipart>=0.0.6",
     "reportlab>=4.0.0",
     "Pillow>=9.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.optional-dependencies]
@@ -40,15 +43,12 @@ dev = [
     "flake8>=5.0.0",
     "mypy>=1.0.0",
     "pre-commit>=2.20.0",
-]
-api = [
-    "pydantic>=1.10.0",
+    "isort>=5.0.0",
+    "pip-audit>=2.0.0",
 ]
 
 [project.scripts]
-pdftool-gui = "pdftool.gui.main:main"
-pdftool = "pdftool.api.main:main"
-pdftool-api = "pdftool.api.main:main"
+pdftool = "pdftool.interfaces.web.main:main"
 
 [project.urls]
 Homepage = "https://github.com/Rem-yl/PDFTool"

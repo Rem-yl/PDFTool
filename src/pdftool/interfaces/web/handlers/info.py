@@ -6,8 +6,8 @@ from typing import List
 
 from fastapi import HTTPException, UploadFile
 
-from ...core.exceptions import PDFToolError
-from ...utils.logging import get_logger
+from ....common.exceptions import PDFToolError
+from ....common.utils.logging import get_logger
 from ..interfaces import BaseServiceHandler
 from ..schemas.responses import PDFInfoResponse
 

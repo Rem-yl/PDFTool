@@ -9,13 +9,13 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-from ...core.exceptions import (
+from ....common.exceptions import (
     PDFFileNotFoundError,
     PDFProcessingError,
     PDFToolError,
     PDFValidationError,
 )
-from ...utils.logging import get_logger
+from ....common.utils.logging import get_logger
 from ..schemas.responses import ErrorResponse
 
 logger = get_logger("api.error_handler")
