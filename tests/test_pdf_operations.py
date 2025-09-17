@@ -21,17 +21,17 @@ from pdftool.core.models import (
     WatermarkPosition,
     WatermarkType,
 )
-from pdftool.core.pdf_operations import PDFOperations
+from pdftool.core.pdf_processor import PDFProcessor
 
 
 class TestPDFOperations:
-    """Test cases for PDFOperations class"""
+    """Test cases for PDFProcessor class"""
 
     @pytest.fixture
-    def pdf_ops(self):
-        """Create PDFOperations instance for testing"""
+    def pdf_processor(self):
+        """Create PDFProcessor instance for testing"""
         with tempfile.TemporaryDirectory() as temp_dir:
-            yield PDFOperations(temp_dir=Path(temp_dir))
+            yield PDFProcessor(temp_dir=Path(temp_dir))
 
     @pytest.fixture
     def sample_pdf_path(self):
@@ -40,14 +40,14 @@ class TestPDFOperations:
         # For testing, we'll mock the PDF operations
         return Path("sample.pdf")
 
-    def test_validate_pdf_file_not_found(self, pdf_ops):
+    def test_validate_pdf_file_not_found(self, pdf_processor):
         """Test validation fails for non-existent file"""
         non_existent_file = Path("non_existent.pdf")
 
         with pytest.raises(PDFFileNotFoundError, match="PDF file not found"):
-            pdf_ops.validate_pdf_file(non_existent_file)
+            pdf_processor.validate_pdf_file(non_existent_file)
 
-    def test_validate_pdf_file_wrong_extension(self, pdf_ops):
+    def test_validate_pdf_file_wrong_extension(self, pdf_processor):
         """Test validation fails for non-PDF file"""
         # Create a temporary file with wrong extension
         with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as tmp:
@@ -55,12 +55,12 @@ class TestPDFOperations:
 
         try:
             with pytest.raises(PDFValidationError, match="File is not a PDF"):
-                pdf_ops.validate_pdf_file(tmp_path)
+                pdf_processor.validate_pdf_file(tmp_path)
         finally:
             tmp_path.unlink(missing_ok=True)
 
     @patch("pdftool.core.pdf_operations.PyPDF2.PdfReader")
-    def test_get_pdf_info_success(self, mock_reader, pdf_ops):
+    def test_get_pdf_info_success(self, mock_reader, pdf_processor):
         """Test successful PDF info extraction"""
         # Mock PDF reader
         mock_reader_instance = Mock()
@@ -77,7 +77,7 @@ class TestPDFOperations:
             tmp.write(b"dummy pdf content")
 
         try:
-            info = pdf_ops.get_pdf_info(tmp_path)
+            info = pdf_processor.get_pdf_info(tmp_path)
 
             assert info.pages == 2
             assert info.title == "Test PDF"
@@ -89,7 +89,7 @@ class TestPDFOperations:
 
     @patch("pdftool.core.pdf_operations.PyPDF2.PdfMerger")
     @patch("pdftool.core.pdf_operations.PDFOperations.validate_pdf_file")
-    def test_merge_pdfs_success(self, mock_validate, mock_merger, pdf_ops):
+    def test_merge_pdfs_success(self, mock_validate, mock_merger, pdf_processor):
         """Test successful PDF merging"""
         # Create temporary PDF files
         pdf_files = []
@@ -105,7 +105,7 @@ class TestPDFOperations:
             mock_merger.return_value = mock_merger_instance
 
             options = MergeOptions()
-            result = pdf_ops.merge_pdfs(pdf_files, options)
+            result = pdf_processor.merge_pdfs(pdf_files, options)
 
             assert result.success
             assert len(result.output_files) == 1
@@ -120,15 +120,15 @@ class TestPDFOperations:
             for pdf_file in pdf_files:
                 pdf_file.unlink(missing_ok=True)
 
-    def test_merge_pdfs_insufficient_files(self, pdf_ops):
+    def test_merge_pdfs_insufficient_files(self, pdf_processor):
         """Test merge fails with insufficient files"""
         with pytest.raises(PDFValidationError, match="At least 2 PDF files are required"):
-            pdf_ops.merge_pdfs([Path("single.pdf")])
+            pdf_processor.merge_pdfs([Path("single.pdf")])
 
     @patch("pdftool.core.pdf_operations.PyPDF2.PdfReader")
     @patch("pdftool.core.pdf_operations.PyPDF2.PdfWriter")
     @patch("pdftool.core.pdf_operations.PDFOperations.validate_pdf_file")
-    def test_split_pdf_all_pages(self, mock_validate, mock_writer, mock_reader, pdf_ops):
+    def test_split_pdf_all_pages(self, mock_validate, mock_writer, mock_reader, pdf_processor):
         """Test PDF splitting all pages"""
         # Mock PDF reader
         mock_reader_instance = Mock()
@@ -146,7 +146,7 @@ class TestPDFOperations:
 
         try:
             options = SplitOptions(mode=PageSelectionMode.ALL_PAGES)
-            result = pdf_ops.split_pdf(tmp_path, options)
+            result = pdf_processor.split_pdf(tmp_path, options)
 
             assert result.success
             assert len(result.output_files) == 3
@@ -158,7 +158,7 @@ class TestPDFOperations:
     @patch("pdftool.core.pdf_operations.PyPDF2.PdfReader")
     @patch("pdftool.core.pdf_operations.PyPDF2.PdfWriter")
     @patch("pdftool.core.pdf_operations.PDFOperations.validate_pdf_file")
-    def test_split_pdf_page_range(self, mock_validate, mock_writer, mock_reader, pdf_ops):
+    def test_split_pdf_page_range(self, mock_validate, mock_writer, mock_reader, pdf_processor):
         """Test PDF splitting by page range"""
         # Mock PDF reader
         mock_reader_instance = Mock()
@@ -176,7 +176,7 @@ class TestPDFOperations:
 
         try:
             options = SplitOptions(mode=PageSelectionMode.SPECIFIC_PAGES, start_page=2, end_page=4)
-            result = pdf_ops.split_pdf(tmp_path, options)
+            result = pdf_processor.split_pdf(tmp_path, options)
 
             assert result.success
             assert len(result.output_files) == 1
@@ -184,7 +184,7 @@ class TestPDFOperations:
         finally:
             tmp_path.unlink(missing_ok=True)
 
-    def test_split_pdf_invalid_range(self, pdf_ops):
+    def test_split_pdf_invalid_range(self, pdf_processor):
         """Test split fails with invalid page range"""
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
             tmp_path = Path(tmp.name)
@@ -205,12 +205,12 @@ class TestPDFOperations:
                 )
 
                 with pytest.raises(PDFValidationError, match="Invalid page range"):
-                    pdf_ops.split_pdf(tmp_path, options)
+                    pdf_processor.split_pdf(tmp_path, options)
 
         finally:
             tmp_path.unlink(missing_ok=True)
 
-    def test_create_zip_archive(self, pdf_ops):
+    def test_create_zip_archive(self, pdf_processor):
         """Test ZIP archive creation"""
         # Create temporary files
         temp_files = []
@@ -221,7 +221,7 @@ class TestPDFOperations:
                 temp_files.append(tmp_path)
 
         try:
-            zip_path = pdf_ops.create_zip_archive(temp_files)
+            zip_path = pdf_processor.create_zip_archive(temp_files)
 
             assert zip_path.exists()
             assert zip_path.suffix == ".zip"
@@ -232,7 +232,7 @@ class TestPDFOperations:
             if zip_path.exists():
                 zip_path.unlink()
 
-    def test_cleanup_temp_files(self, pdf_ops):
+    def test_cleanup_temp_files(self, pdf_processor):
         """Test temporary file cleanup"""
         # Create temporary files
         temp_files = []
@@ -245,7 +245,7 @@ class TestPDFOperations:
             assert temp_file.exists()
 
         # Cleanup
-        pdf_ops.cleanup_temp_files(temp_files)
+        pdf_processor.cleanup_temp_files(temp_files)
 
         # Verify files are gone
         for temp_file in temp_files:
@@ -254,7 +254,7 @@ class TestPDFOperations:
     @patch("pdftool.core.pdf_operations.PyPDF2.PdfReader")
     @patch("pdftool.core.pdf_operations.PyPDF2.PdfWriter")
     @patch("pdftool.core.pdf_operations.canvas.Canvas")
-    def test_add_text_watermark_success(self, mock_canvas, mock_writer, mock_reader, pdf_ops):
+    def test_add_text_watermark_success(self, mock_canvas, mock_writer, mock_reader, pdf_processor):
         """Test successful text watermark addition"""
         # Mock PDF reader
         mock_reader_instance = Mock()
@@ -286,7 +286,7 @@ class TestPDFOperations:
                 font_color="#FF0000",
             )
 
-            result = pdf_ops.add_watermark(tmp_path, options)
+            result = pdf_processor.add_watermark(tmp_path, options)
 
             assert result.success
             assert len(result.output_files) == 1
@@ -305,7 +305,7 @@ class TestPDFOperations:
     @patch("pdftool.core.pdf_operations.canvas.Canvas")
     @patch("pdftool.core.pdf_operations.Image.open")
     def test_add_image_watermark_success(
-        self, mock_image_open, mock_canvas, mock_writer, mock_reader, pdf_ops
+        self, mock_image_open, mock_canvas, mock_writer, mock_reader, pdf_processor
     ):
         """Test successful image watermark addition"""
         # Mock PDF reader
@@ -345,7 +345,7 @@ class TestPDFOperations:
                 image_scale=150.0,
             )
 
-            result = pdf_ops.add_watermark(pdf_path, options)
+            result = pdf_processor.add_watermark(pdf_path, options)
 
             assert result.success
             assert len(result.output_files) == 1
@@ -359,7 +359,7 @@ class TestPDFOperations:
             pdf_path.unlink(missing_ok=True)
             img_path.unlink(missing_ok=True)
 
-    def test_add_watermark_invalid_file(self, pdf_ops):
+    def test_add_watermark_invalid_file(self, pdf_processor):
         """Test watermark fails with invalid file"""
         non_existent_file = Path("non_existent.pdf")
 
@@ -371,10 +371,10 @@ class TestPDFOperations:
         )
 
         with pytest.raises(PDFFileNotFoundError, match="PDF file not found"):
-            pdf_ops.add_watermark(non_existent_file, options)
+            pdf_processor.add_watermark(non_existent_file, options)
 
     @patch("pdftool.core.pdf_operations.PyPDF2.PdfReader")
-    def test_add_watermark_missing_text(self, mock_reader, pdf_ops):
+    def test_add_watermark_missing_text(self, mock_reader, pdf_processor):
         """Test watermark fails with missing text for text watermark"""
         # Mock PDF reader
         mock_reader_instance = Mock()
@@ -396,13 +396,13 @@ class TestPDFOperations:
             )
 
             with pytest.raises(PDFProcessingError, match="文本水印需要提供文本内容"):
-                pdf_ops.add_watermark(tmp_path, options)
+                pdf_processor.add_watermark(tmp_path, options)
 
         finally:
             tmp_path.unlink(missing_ok=True)
 
     @patch("pdftool.core.pdf_operations.PyPDF2.PdfReader")
-    def test_add_watermark_missing_image(self, mock_reader, pdf_ops):
+    def test_add_watermark_missing_image(self, mock_reader, pdf_processor):
         """Test watermark fails with missing image for image watermark"""
         # Mock PDF reader
         mock_reader_instance = Mock()
@@ -424,7 +424,7 @@ class TestPDFOperations:
             )
 
             with pytest.raises(PDFProcessingError, match="图片水印需要提供有效的图片文件"):
-                pdf_ops.add_watermark(tmp_path, options)
+                pdf_processor.add_watermark(tmp_path, options)
 
         finally:
             tmp_path.unlink(missing_ok=True)

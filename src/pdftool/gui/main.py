@@ -10,7 +10,7 @@ from typing import List
 from ..config.settings import settings
 from ..core.exceptions import PDFToolError
 from ..core.models import MergeOptions, SplitMode, SplitOptions
-from ..core.pdf_operations import PDFOperations
+from ..core.pdf_processor import PDFProcessor
 from ..utils.logging import get_logger, setup_logging
 
 # Setup logging
@@ -23,7 +23,7 @@ class ModernPDFTool:
 
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.pdf_ops = PDFOperations(temp_dir=settings.temp_dir)
+        self.pdf_processor = PDFProcessor(temp_dir=settings.temp_dir)
         self.setup_main_window()
         self.setup_styles()
         self.create_widgets()
@@ -296,7 +296,7 @@ class ModernPDFTool:
         try:
             self.update_status("正在合并PDF文件...")
             options = MergeOptions(output_file=Path(output_file))
-            result = self.pdf_ops.merge_pdfs(self.merge_files, options)
+            result = self.pdf_processor.merge_pdfs(self.merge_files, options)
 
             if result.success:
                 self.update_status("PDF合并完成")
@@ -352,7 +352,7 @@ class ModernPDFTool:
                 filename_prefix=Path(input_file).stem,
             )
 
-            result = self.pdf_ops.split_pdf(Path(input_file), options)
+            result = self.pdf_processor.split_pdf(Path(input_file), options)
 
             if result.success:
                 self.update_status("PDF拆分完成")
@@ -390,7 +390,7 @@ class ModernPDFTool:
 
         try:
             self.update_status("正在读取PDF信息...")
-            info = self.pdf_ops.get_pdf_info(Path(input_file))
+            info = self.pdf_processor.get_pdf_info(Path(input_file))
 
             # Display info
             self.info_text.config(state=tk.NORMAL)

@@ -2,24 +2,26 @@
 Core interfaces for PDF operations
 """
 
+import logging
+import shutil
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, List, Optional
 
+import PyPDF2
+
+from .exceptions import PDFFileNotFoundError, PDFValidationError
 from .models import OperationResult
+
+logger = logging.getLogger(__name__)
 
 
 class IPDFOperation(ABC):
     """Base interface for all PDF operations"""
 
     @abstractmethod
-    def execute(self, input_file: Path, options: Any) -> OperationResult:
+    def execute(self, input_data: Any, options: Any) -> Any:
         """Execute the PDF operation"""
-        pass
-
-    @abstractmethod
-    def validate_input(self, input_file: Path, options: Any) -> None:
-        """Validate input parameters"""
         pass
 
     @property
@@ -57,17 +59,39 @@ class BasePDFOperation(IPDFOperation):
 
     def validate_pdf_file(self, file_path: Path) -> None:
         """Common PDF file validation"""
-        from .pdf_operations import (
-            PDFOperations,  # Import here to avoid circular imports
-        )
+        if not file_path.exists():
+            raise PDFFileNotFoundError(f"PDF file not found: {file_path}")
 
-        # Use existing validation logic
-        pdf_ops = PDFOperations(self.temp_dir)
-        pdf_ops.validate_pdf_file(file_path)
+        if file_path.suffix.lower() != ".pdf":
+            raise PDFValidationError(f"File is not a PDF: {file_path}")
 
-    def cleanup_temp_files(self, files: list[Path]) -> None:
+        try:
+            with open(file_path, "rb") as f:
+                PyPDF2.PdfReader(f)
+        except Exception as e:
+            raise PDFValidationError(f"Invalid PDF file: {file_path}. Error: {str(e)}")
+
+    def cleanup_temp_files(self, files: List[Path]) -> None:
         """Common cleanup functionality"""
-        from .pdf_operations import PDFOperations
+        for file_path in files:
+            try:
+                if file_path.is_file():
+                    file_path.unlink()
+                elif file_path.is_dir():
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                logger.warning(f"Failed to cleanup {file_path}: {str(e)}")
 
-        pdf_ops = PDFOperations(self.temp_dir)
-        pdf_ops.cleanup_temp_files(files)
+    def create_temp_file(self, suffix: str = "") -> Path:
+        """Create a temporary file path"""
+        from uuid import uuid4
+
+        return self.temp_dir / f"temp_{uuid4().hex}{suffix}"
+
+    def create_temp_dir(self) -> Path:
+        """Create a temporary directory"""
+        from uuid import uuid4
+
+        temp_dir = self.temp_dir / f"temp_{uuid4().hex}"
+        temp_dir.mkdir(exist_ok=True)
+        return temp_dir

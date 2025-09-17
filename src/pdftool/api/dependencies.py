@@ -8,7 +8,7 @@ from typing import Generator
 from fastapi import Depends, HTTPException, status
 
 from ..config.settings import settings
-from ..core.pdf_operations import PDFOperations
+from ..core.pdf_processor import PDFProcessor
 from ..utils.logging import get_logger
 from .service_manager import ServiceManager
 
@@ -26,9 +26,9 @@ def get_service_manager() -> ServiceManager:
     return _service_manager
 
 
-def get_pdf_operations() -> PDFOperations:
-    """获取PDF操作实例 (保持向后兼容)"""
-    return PDFOperations(temp_dir=settings.temp_dir)
+def get_pdf_processor() -> PDFProcessor:
+    """获取PDF处理器实例"""
+    return PDFProcessor(temp_dir=settings.temp_dir)
 
 
 def get_settings():
