@@ -110,3 +110,22 @@ async def info_page(
             "show_back_button": True
         }
     )
+    
+@router.get("/watermark", response_class=HTMLResponse, summary="添加水印页面")
+async def add_watermark_page(
+    request: Request,
+    settings=Depends(get_settings)
+):
+    """
+    PDF添加水印功能页面
+    
+    支持上传图片以及输入文字添加水印
+    """
+    return templates.TemplateResponse(
+        "watermark.html",
+        {
+            "request": request,
+            "app_name": settings.app_name,
+            "show_back_button": True
+        }
+    )

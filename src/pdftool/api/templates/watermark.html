@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+
+{% block title %}添加水印 - PDFTool{% endblock %}
+
+{% block header_icon %}🐳{% endblock %}
+{% block header_title %}添加水印{% endblock %}
+{% block header_description %}上传图片/输入文字以在PDF中添加水印{% endblock %}
+
+{% set show_back_button = true %}
+{% block content %}
+<div class="upload-area" id="watermarkDropZone">
+    <h3>选择要添加水印的PDF文件</h3>
+    <input type="file" id="pdfFile" accept=".pdf">
+
+    <div class="options-group">
+        <h4>水印类型：</h4>
+        <label>
+            <input type="radio" name="watermarkType" value="text" checked> 文字水印
+        </label>
+        <label>
+            <input type="radio" name="watermarkType" value="image"> 图片水印
+        </label>
+    </div>
+
+    <!-- 文字水印选项 -->
+    <div class="options-group" id="textWatermarkOptions">
+        <h4>文字水印设置：</h4>
+        <div style="margin-bottom: 15px;">
+            <label for="watermarkText">水印文字：</label>
+            <input type="text" id="watermarkText" placeholder="请输入水印文字" style="width: 300px; margin-left: 10px;">
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label for="fontSize">字体大小：</label>
+            <input type="number" id="fontSize" value="36" min="12" max="100" style="width: 80px; margin-left: 10px;">
+            <span style="margin-left: 5px; color: #6c757d;">px</span>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label for="fontColor">字体颜色：</label>
+            <input type="color" id="fontColor" value="#000000" style="margin-left: 10px;">
+        </div>
+    </div>
+
+    <!-- 图片水印选项 -->
+    <div class="options-group" id="imageWatermarkOptions" style="display: none;">
+        <h4>图片水印设置：</h4>
+        <div style="margin-bottom: 15px;">
+            <label for="watermarkImage">选择水印图片：</label>
+            <input type="file" id="watermarkImage" accept="image/*" style="margin-left: 10px; width: 250px;">
+            <div class="help-text">支持 JPG、PNG、GIF 格式，建议大小不超过 5MB</div>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label for="imageScale">图片缩放：</label>
+            <input type="number" id="imageScale" value="100" min="10" max="300" step="10" style="width: 80px; margin-left: 10px;">
+            <span style="margin-left: 5px; color: #6c757d;">%</span>
+        </div>
+    </div>
+
+    <!-- 通用水印位置设置 -->
+    <div class="options-group">
+        <h4>水印位置：</h4>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 300px; margin: 15px auto;">
+            <label style="text-align: center; margin: 5px;">
+                <input type="radio" name="position" value="top-left"> 左上
+            </label>
+            <label style="text-align: center; margin: 5px;">
+                <input type="radio" name="position" value="top-center"> 中上
+            </label>
+            <label style="text-align: center; margin: 5px;">
+                <input type="radio" name="position" value="top-right"> 右上
+            </label>
+            <label style="text-align: center; margin: 5px;">
+                <input type="radio" name="position" value="center-left"> 左中
+            </label>
+            <label style="text-align: center; margin: 5px;">
+                <input type="radio" name="position" value="center" checked> 居中
+            </label>
+            <label style="text-align: center; margin: 5px;">
+                <input type="radio" name="position" value="center-right"> 右中
+            </label>
+            <label style="text-align: center; margin: 5px;">
+                <input type="radio" name="position" value="bottom-left"> 左下
+            </label>
+            <label style="text-align: center; margin: 5px;">
+                <input type="radio" name="position" value="bottom-center"> 中下
+            </label>
+            <label style="text-align: center; margin: 5px;">
+                <input type="radio" name="position" value="bottom-right"> 右下
+            </label>
+        </div>
+    </div>
+
+    <!-- 透明度设置 -->
+    <div class="options-group">
+        <h4>透明度设置：</h4>
+        <div style="margin-bottom: 15px;">
+            <label for="opacity">透明度：</label>
+            <input type="range" id="opacity" min="10" max="100" value="50" style="width: 200px; margin: 0 15px;">
+            <span id="opacityValue" style="color: #6c757d;">50%</span>
+        </div>
+        <div class="help-text">数值越小，水印越透明</div>
+    </div>
+
+    <!-- 页面选择设置 -->
+    <div class="options-group">
+        <h4>页面选择：</h4>
+        <label>
+            <input type="radio" name="pageSelection" value="all" checked> 所有页面
+        </label>
+        <label>
+            <input type="radio" name="pageSelection" value="range"> 指定页面范围
+        </label>
+        <label>
+            <input type="radio" name="pageSelection" value="specific"> 指定页面
+        </label>
+
+        <div class="pages-inputs" id="pageRangeInputs">
+            <div style="margin-bottom: 10px;">
+                起始页: <input type="number" id="startPage" value="1" min="1">
+                结束页: <input type="number" id="endPage" min="1" placeholder="可选">
+            </div>
+            <div class="help-text">如果结束页为空，则从起始页到文档末尾</div>
+        </div>
+
+        <div class="pages-inputs" id="specificPagesInputs">
+            <div style="margin-bottom: 10px;">
+                <label for="specificPages">指定页面：</label>
+                <input type="text" id="specificPages" placeholder="例如: 1,3,5-8,10" style="width: 200px; margin-left: 10px;">
+            </div>
+            <div class="help-text">支持单页(1,3)、范围(5-8)、混合(1,3,5-8,10)</div>
+        </div>
+    </div>
+
+    <button onclick="addWatermark()">添加水印</button>
+</div>
+
+<div class="progress-bar" id="watermarkProgress">
+    <div class="progress-fill"></div>
+</div>
+
+<div id="watermarkResult"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', path='/js/upload.js') }}"></script>
+<script>
+    // 设置拖放区域
+    setupDropZone('watermarkDropZone', 'pdfFile');
+
+    // 水印类型切换
+    document.querySelectorAll('input[name="watermarkType"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const textOptions = document.getElementById('textWatermarkOptions');
+            const imageOptions = document.getElementById('imageWatermarkOptions');
+
+            if (this.value === 'text') {
+                textOptions.style.display = 'block';
+                imageOptions.style.display = 'none';
+            } else {
+                textOptions.style.display = 'none';
+                imageOptions.style.display = 'block';
+            }
+        });
+    });
+
+    // 页面选择切换
+    document.querySelectorAll('input[name="pageSelection"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const rangeInputs = document.getElementById('pageRangeInputs');
+            const specificInputs = document.getElementById('specificPagesInputs');
+
+            // 隐藏所有输入框
+            rangeInputs.classList.remove('show');
+            specificInputs.classList.remove('show');
+
+            // 显示对应的输入框
+            if (this.value === 'range') {
+                rangeInputs.classList.add('show');
+            } else if (this.value === 'specific') {
+                specificInputs.classList.add('show');
+            }
+        });
+    });
+
+    // 透明度滑块更新
+    document.getElementById('opacity').addEventListener('input', function() {
+        document.getElementById('opacityValue').textContent = this.value + '%';
+    });
+
+    // 图片大小验证
+    document.getElementById('watermarkImage').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                alert('图片大小不能超过 5MB，请选择更小的图片');
+                this.value = '';
+                return;
+            }
+
+            // 显示文件信息
+            const fileInfo = document.createElement('div');
+            fileInfo.className = 'help-text';
+            fileInfo.textContent = `已选择: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`;
+
+            // 移除之前的文件信息
+            const existingInfo = this.parentNode.querySelector('.file-info');
+            if (existingInfo) {
+                existingInfo.remove();
+            }
+
+            fileInfo.className += ' file-info';
+            this.parentNode.appendChild(fileInfo);
+        }
+    });
+
+    // 添加水印函数
+    async function addWatermark() {
+        const pdfFile = document.getElementById('pdfFile').files[0];
+        if (!pdfFile) {
+            showResult('watermarkResult', '请选择PDF文件', false);
+            return;
+        }
+
+        const watermarkType = document.querySelector('input[name="watermarkType"]:checked').value;
+
+        // 验证水印内容
+        if (watermarkType === 'text') {
+            const watermarkText = document.getElementById('watermarkText').value.trim();
+            if (!watermarkText) {
+                showResult('watermarkResult', '请输入水印文字', false);
+                return;
+            }
+        } else {
+            const watermarkImage = document.getElementById('watermarkImage').files[0];
+            if (!watermarkImage) {
+                showResult('watermarkResult', '请选择水印图片', false);
+                return;
+            }
+        }
+
+        // 验证页面选择
+        const pageSelection = document.querySelector('input[name="pageSelection"]:checked').value;
+        if (pageSelection === 'specific') {
+            const specificPages = document.getElementById('specificPages').value.trim();
+            if (!specificPages) {
+                showResult('watermarkResult', '请输入要添加水印的页面', false);
+                return;
+            }
+
+            // 简单验证页面格式
+            if (!/^[\d,\-\s]+$/.test(specificPages)) {
+                showResult('watermarkResult', '页面格式不正确，请使用数字、逗号和横杠', false);
+                return;
+            }
+        }
+
+        const formData = new FormData();
+        formData.append('pdf_file', pdfFile);
+        formData.append('watermark_type', watermarkType);
+
+        // 添加水印相关参数
+        if (watermarkType === 'text') {
+            formData.append('watermark_text', document.getElementById('watermarkText').value);
+            formData.append('font_size', document.getElementById('fontSize').value);
+            formData.append('font_color', document.getElementById('fontColor').value);
+        } else {
+            formData.append('watermark_image', document.getElementById('watermarkImage').files[0]);
+            formData.append('image_scale', document.getElementById('imageScale').value);
+        }
+
+        // 添加位置和透明度参数
+        formData.append('position', document.querySelector('input[name="position"]:checked').value);
+        formData.append('opacity', document.getElementById('opacity').value);
+
+        // 添加页面选择参数
+        formData.append('page_selection', pageSelection);
+        if (pageSelection === 'range') {
+            const startPage = document.getElementById('startPage').value;
+            const endPage = document.getElementById('endPage').value;
+            formData.append('start_page', startPage);
+            if (endPage) formData.append('end_page', endPage);
+        } else if (pageSelection === 'specific') {
+            formData.append('specific_pages', document.getElementById('specificPages').value);
+        }
+
+        showProgress('watermarkProgress');
+
+        try {
+            const response = await fetch('/api/v1/pdf/watermark', {
+                method: 'POST',
+                body: formData
+            });
+
+            hideProgress('watermarkProgress');
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const filename = `watermarked_${pdfFile.name}`;
+                downloadFile(blob, filename);
+                showResult('watermarkResult', '✅ 水印添加成功！文件已下载', true);
+            } else {
+                const error = await response.json();
+                showResult('watermarkResult', `❌ 错误: ${error.message}`, false);
+            }
+        } catch (error) {
+            hideProgress('watermarkProgress');
+            showResult('watermarkResult', `❌ 请求失败: ${error.message}`, false);
+        }
+    }
+</script>
+{% endblock %}
