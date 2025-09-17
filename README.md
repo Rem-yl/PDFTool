@@ -12,6 +12,7 @@ PDFTool 是一个现代化的 PDF 操作工具，提供 GUI 桌面应用、Web A
 - **PDF 合并**: 支持多个 PDF 文件合并为一个文件
 - **PDF 拆分**: 支持将 PDF 文件拆分为单页或指定页面范围
 - **PDF 信息**: 获取 PDF 文件的详细信息（页数、标题、作者等）
+- **PDF 水印**: 添加文本或图片水印到 PDF，支持透明度和9个位置选择
 
 ### 🎯 多种界面
 - **现代化 GUI**: 基于 Tkinter 的桌面应用，支持拖拽操作
@@ -19,13 +20,15 @@ PDFTool 是一个现代化的 PDF 操作工具，提供 GUI 桌面应用、Web A
 - **RESTful API**: 提供完整的 API 接口，方便集成到其他系统
 
 ### 🏗️ 工程化特性
-- **模块化架构**: 清晰的代码组织结构
+- **插件式架构**: 基于策略模式和服务注册模式的可扩展架构
+- **模块化设计**: 核心操作和API服务完全解耦，易于维护
 - **类型安全**: 完整的类型注解支持
 - **错误处理**: 专门的异常类型和错误处理
 - **配置管理**: 环境变量和配置文件支持
 - **日志系统**: 结构化日志记录
 - **测试覆盖**: 完整的单元测试
 - **Docker 支持**: 容器化部署
+- **动态注册**: 支持运行时注册新操作和服务
 
 ## 🚀 快速开始
 
@@ -90,7 +93,7 @@ make docker-run
 
 ## 🏗️ 项目架构
 
-PDFTool 采用现代化的分层架构设计，具有出色的可扩展性和可维护性：
+PDFTool 采用现代化的插件式架构设计，具有出色的可扩展性和可维护性：
 
 ```
 ┌─────────────────────────────────────────┐
@@ -110,18 +113,34 @@ PDFTool 采用现代化的分层架构设计，具有出色的可扩展性和可
 │  CORS │ Error Handler │ Logging │ Auth  │
 └─────────────────────────────────────────┘
 ┌─────────────────────────────────────────┐
-│         服务层 (Service Layer)           │
+│      服务处理层 (Service Handler)        │
 ├─────────────────────────────────────────┤
-│   PDF Service │ File Service │ Utils   │
+│Watermark│Merge│Split│Info│ServiceRegistry│
+└─────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│      策略引擎层 (Strategy Engine)        │
+├─────────────────────────────────────────┤
+│    PDFProcessor + OperationFactory      │
+└─────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│        操作插件层 (Operations)           │
+├─────────────────────────────────────────┤
+│ WatermarkOp │ MergeOp │ SplitOp │ InfoOp │
 └─────────────────────────────────────────┘
 ┌─────────────────────────────────────────┐
 │          核心层 (Core Layer)             │
 ├─────────────────────────────────────────┤
-│     PDFOperations (PyPDF2引擎)          │
+│         PDF引擎 (PyPDF2/Reportlab)       │
 └─────────────────────────────────────────┘
 ```
 
-详细架构说明请参考 → **[完整架构文档](./WIKI.md)**
+### 🔌 架构优势
+- **高扩展性**: 新功能通过插件方式添加，无需修改核心代码
+- **解耦设计**: 各层职责单一，便于测试和维护
+- **策略模式**: 支持动态选择和注册PDF操作
+- **服务注册**: API服务可以运行时注册和发现
+
+详细架构说明请参考 → **[重构文档](./docs/PDF-3_REFACTOR.md)** | **[完整架构文档](./docs/WIKI.md)**
 
 ## 🔧 API 接口
 
@@ -145,15 +164,15 @@ preserve_bookmarks: true (可选)
 preserve_metadata: true (可选)
 ```
 
-#### 2. PDF 拆分
+#### 2. PDF 页面操作
 ```http
-POST /api/v1/pdf/split
+POST /api/v1/pdf/pages
 Content-Type: multipart/form-data
 
 file: example.pdf
-mode: "all" | "range"
-start_page: 1 (range模式必需)
-end_page: 10 (可选)
+mode: "all" | "pages" | "single"
+pages: "1,3,5" 或 "1-5" (pages/single模式)
+filename_prefix: "output" (可选)
 ```
 
 #### 3. PDF 信息提取
@@ -164,9 +183,26 @@ Content-Type: multipart/form-data
 file: example.pdf
 ```
 
-#### 4. 支持格式查询
+#### 4. PDF 水印添加
 ```http
-GET /api/v1/pdf/formats
+POST /api/v1/pdf/watermark
+Content-Type: multipart/form-data
+
+file: example.pdf
+watermark_type: "text" | "image"
+watermark_text: "水印文字" (文本水印)
+watermark_image: image_file (图片水印)
+position: "top_left" | "top_center" | "top_right" |
+          "middle_left" | "center" | "middle_right" |
+          "bottom_left" | "bottom_center" | "bottom_right"
+opacity: 50 (0-100)
+page_selection: "all" | "pages"
+specific_pages: "1,3,5" (可选)
+```
+
+#### 5. 服务发现
+```http
+GET /api/v1/pdf/services
 ```
 
 ### 🔍 系统监控端点
@@ -269,6 +305,38 @@ docker-compose up -d
 - 配置管理系统
 - 类型安全支持
 
+## 🔌 架构扩展指南
+
+PDFTool 的新架构支持轻松添加新功能，无需修改核心代码：
+
+### 添加新的PDF操作
+```python
+# 1. 创建操作类
+class CustomOperation(BasePDFOperation):
+    def execute(self, input_file: Path, options: CustomOptions) -> OperationResult:
+        # 实现操作逻辑
+        pass
+
+# 2. 注册操作
+pdf_processor.register_operation("custom", CustomOperation)
+```
+
+### 添加新的API服务
+```python
+# 1. 创建服务处理器
+class CustomServiceHandler(BaseServiceHandler):
+    @property
+    def service_name(self) -> str:
+        return "custom"
+
+    async def handle(self, files: List[UploadFile], request: CustomRequest) -> OperationResult:
+        # 实现API处理逻辑
+        pass
+
+# 2. 注册服务
+service_manager.register_service("custom", CustomServiceHandler)
+```
+
 ## 📈 性能优化
 
 - 异步文件处理
@@ -276,6 +344,7 @@ docker-compose up -d
 - 临时文件自动清理
 - 请求限流保护
 - Docker 多阶段构建
+- 插件式架构减少资源消耗
 
 ## 🤝 贡献指南
 
@@ -313,7 +382,7 @@ docker-compose up -d
 
 ### 🚀 核心功能扩展
 - [ ] **PDF 压缩功能** - 减少 PDF 文件大小，支持多种压缩级别
-- [ ] **PDF 水印功能** - 添加文字或图片水印到 PDF，支持透明度和位置调整
+- [x] **PDF 水印功能** - 添加文字或图片水印到 PDF，支持透明度和位置调整 ✅
 - [ ] **PDF 密码保护** - 为 PDF 文件添加/移除密码保护，支持用户密码和所有者密码
 - [ ] **PDF 解密功能** - 解密受密码保护的 PDF 文件
 - [ ] **PDF 旋转功能** - 旋转 PDF 页面方向（90°/180°/270°）
