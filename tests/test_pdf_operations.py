@@ -8,8 +8,19 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from pdftool.core.exceptions import PDFValidationError
-from pdftool.core.models import MergeOptions, SplitMode, SplitOptions
+from pdftool.core.exceptions import (
+    PDFFileNotFoundError,
+    PDFProcessingError,
+    PDFValidationError,
+)
+from pdftool.core.models import (
+    MergeOptions,
+    SplitMode,
+    SplitOptions,
+    WatermarkOptions,
+    WatermarkPosition,
+    WatermarkType,
+)
 from pdftool.core.pdf_operations import PDFOperations
 
 
@@ -33,7 +44,7 @@ class TestPDFOperations:
         """Test validation fails for non-existent file"""
         non_existent_file = Path("non_existent.pdf")
 
-        with pytest.raises(PDFValidationError, match="PDF file not found"):
+        with pytest.raises(PDFFileNotFoundError, match="PDF file not found"):
             pdf_ops.validate_pdf_file(non_existent_file)
 
     def test_validate_pdf_file_wrong_extension(self, pdf_ops):
@@ -234,3 +245,181 @@ class TestPDFOperations:
         # Verify files are gone
         for temp_file in temp_files:
             assert not temp_file.exists()
+
+    @patch("pdftool.core.pdf_operations.PyPDF2.PdfReader")
+    @patch("pdftool.core.pdf_operations.PyPDF2.PdfWriter")
+    @patch("pdftool.core.pdf_operations.canvas.Canvas")
+    def test_add_text_watermark_success(self, mock_canvas, mock_writer, mock_reader, pdf_ops):
+        """Test successful text watermark addition"""
+        # Mock PDF reader
+        mock_reader_instance = Mock()
+        mock_reader_instance.pages = [Mock(), Mock()]  # 2 pages
+        mock_reader.return_value = mock_reader_instance
+
+        # Mock PDF writer
+        mock_writer_instance = Mock()
+        mock_writer.return_value = mock_writer_instance
+
+        # Mock canvas
+        mock_canvas_instance = Mock()
+        mock_canvas.return_value = mock_canvas_instance
+        mock_canvas_instance.stringWidth.return_value = 100
+
+        # Create temporary PDF file
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+            tmp.write(b"dummy pdf content")
+
+        try:
+            # Create watermark options
+            options = WatermarkOptions(
+                watermark_type=WatermarkType.TEXT,
+                position=WatermarkPosition.CENTER,
+                opacity=0.5,
+                text="Test Watermark",
+                font_size=36,
+                font_color="#FF0000",
+            )
+
+            result = pdf_ops.add_watermark(tmp_path, options)
+
+            assert result.success
+            assert len(result.output_files) == 1
+            assert "水印" in result.message
+
+            # Verify canvas methods were called
+            mock_canvas_instance.setFillAlpha.assert_called_with(0.5)
+            mock_canvas_instance.setFont.assert_called()
+            mock_canvas_instance.drawString.assert_called()
+
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+    @patch("pdftool.core.pdf_operations.PyPDF2.PdfReader")
+    @patch("pdftool.core.pdf_operations.PyPDF2.PdfWriter")
+    @patch("pdftool.core.pdf_operations.canvas.Canvas")
+    @patch("pdftool.core.pdf_operations.Image.open")
+    def test_add_image_watermark_success(
+        self, mock_image_open, mock_canvas, mock_writer, mock_reader, pdf_ops
+    ):
+        """Test successful image watermark addition"""
+        # Mock PDF reader
+        mock_reader_instance = Mock()
+        mock_reader_instance.pages = [Mock()]  # 1 page
+        mock_reader.return_value = mock_reader_instance
+
+        # Mock PDF writer
+        mock_writer_instance = Mock()
+        mock_writer.return_value = mock_writer_instance
+
+        # Mock canvas
+        mock_canvas_instance = Mock()
+        mock_canvas.return_value = mock_canvas_instance
+
+        # Mock image
+        mock_image = Mock()
+        mock_image.size = (100, 50)
+        mock_image_open.return_value = mock_image
+
+        # Create temporary files
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_pdf:
+            pdf_path = Path(tmp_pdf.name)
+            tmp_pdf.write(b"dummy pdf content")
+
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_img:
+            img_path = Path(tmp_img.name)
+            tmp_img.write(b"dummy image content")
+
+        try:
+            # Create watermark options
+            options = WatermarkOptions(
+                watermark_type=WatermarkType.IMAGE,
+                position=WatermarkPosition.BOTTOM_RIGHT,
+                opacity=0.3,
+                image_path=img_path,
+                image_scale=150.0,
+            )
+
+            result = pdf_ops.add_watermark(pdf_path, options)
+
+            assert result.success
+            assert len(result.output_files) == 1
+            assert "水印" in result.message
+
+            # Verify image methods were called
+            mock_image_open.assert_called_with(img_path)
+            mock_canvas_instance.drawImage.assert_called()
+
+        finally:
+            pdf_path.unlink(missing_ok=True)
+            img_path.unlink(missing_ok=True)
+
+    def test_add_watermark_invalid_file(self, pdf_ops):
+        """Test watermark fails with invalid file"""
+        non_existent_file = Path("non_existent.pdf")
+
+        options = WatermarkOptions(
+            watermark_type=WatermarkType.TEXT,
+            position=WatermarkPosition.CENTER,
+            opacity=0.5,
+            text="Test",
+        )
+
+        with pytest.raises(PDFFileNotFoundError, match="PDF file not found"):
+            pdf_ops.add_watermark(non_existent_file, options)
+
+    @patch("pdftool.core.pdf_operations.PyPDF2.PdfReader")
+    def test_add_watermark_missing_text(self, mock_reader, pdf_ops):
+        """Test watermark fails with missing text for text watermark"""
+        # Mock PDF reader
+        mock_reader_instance = Mock()
+        mock_reader_instance.pages = [Mock()]
+        mock_reader.return_value = mock_reader_instance
+
+        # Create temporary PDF file
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+            tmp.write(b"dummy pdf content")
+
+        try:
+            # Create watermark options without text
+            options = WatermarkOptions(
+                watermark_type=WatermarkType.TEXT,
+                position=WatermarkPosition.CENTER,
+                opacity=0.5,
+                text=None,  # Missing text
+            )
+
+            with pytest.raises(PDFProcessingError, match="文本水印需要提供文本内容"):
+                pdf_ops.add_watermark(tmp_path, options)
+
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+    @patch("pdftool.core.pdf_operations.PyPDF2.PdfReader")
+    def test_add_watermark_missing_image(self, mock_reader, pdf_ops):
+        """Test watermark fails with missing image for image watermark"""
+        # Mock PDF reader
+        mock_reader_instance = Mock()
+        mock_reader_instance.pages = [Mock()]
+        mock_reader.return_value = mock_reader_instance
+
+        # Create temporary PDF file
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+            tmp.write(b"dummy pdf content")
+
+        try:
+            # Create watermark options without image
+            options = WatermarkOptions(
+                watermark_type=WatermarkType.IMAGE,
+                position=WatermarkPosition.CENTER,
+                opacity=0.5,
+                image_path=None,  # Missing image
+            )
+
+            with pytest.raises(PDFProcessingError, match="图片水印需要提供有效的图片文件"):
+                pdf_ops.add_watermark(tmp_path, options)
+
+        finally:
+            tmp_path.unlink(missing_ok=True)

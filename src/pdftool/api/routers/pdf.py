@@ -2,10 +2,11 @@
 PDF操作API路由
 """
 
+from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from ..dependencies import get_pdf_operations, parse_page_list, validate_file_extension
 from ..schemas.requests import (
@@ -13,6 +14,7 @@ from ..schemas.requests import (
     PDFMergeRequest,
     PDFPageSelectionRequest,
     WatermarkPositionEnum,
+    WatermarkRequest,
     WatermarkTypeEnum,
 )
 from ..schemas.responses import PDFInfoResponse, SuccessResponse
@@ -165,43 +167,73 @@ async def get_supported_formats():
     )
 
 
-# REM: 实现水印功能接口
 @router.post(
     "/watermark",
-    response_class=JSONResponse,
+    response_class=FileResponse,
     summary="添加水印",
     description="将水印添加到PDF文件中",
 )
-async def add_watermarks(
+async def add_watermark(
     file: UploadFile = File(..., description="要添加水印的PDF文件"),
     watermark_type: WatermarkTypeEnum = Form(..., description="水印类型: text/image"),
     watermark_text: Optional[str] = Form(None, description="文本水印内容"),
-    font_size: Optional[int] = Form(None, description="字体大小"),
-    font_color: Optional[str] = Form(None, description="字体颜色"),
+    font_size: Optional[int] = Form(36, description="字体大小"),
+    font_color: Optional[str] = Form("#000000", description="字体颜色"),
     watermark_image: Optional[UploadFile] = File(None, description="图片水印文件"),
-    image_scale: Optional[float] = Form(None, description="图片缩放比例"),
+    image_scale: Optional[float] = Form(100, description="图片缩放比例"),
     position: WatermarkPositionEnum = Form(..., description="水印位置"),
-    opacity: float = Form(..., description="透明度"),
+    opacity: float = Form(..., description="透明度(0.1-1.0)"),
     page_selection: PageSelectionModeEnum = Form(..., description="页面选择模式"),
     specific_pages: Optional[str] = Form(None, description="指定页面"),
     pdf_service: PDFService = Depends(get_pdf_service),
 ):
+    """
+    添加水印到PDF文件
+
+    - **file**: 要添加水印的PDF文件
+    - **watermark_type**: 水印类型（text/image）
+    - **watermark_text**: 文本水印内容（文本水印必需）
+    - **font_size**: 字体大小（12-100）
+    - **font_color**: 字体颜色（十六进制，如#000000）
+    - **watermark_image**: 图片水印文件（图片水印必需）
+    - **image_scale**: 图片缩放百分比（10-300）
+    - **position**: 水印位置（1-9）
+    - **opacity**: 透明度（0.1-1.0）
+    - **page_selection**: 页面选择模式（all/range）
+    - **specific_pages**: 指定页面（如: 1,3,5-8）
+    """
+    # 验证文件
     validate_file_extension(file.filename)
 
-    content = {
-        "file": file.filename,
-        "watermark_type": watermark_type,
-        "watermark_text": watermark_text,
-        "font_size": font_size,
-        "font_color": font_color,
-        "watermark_image": watermark_image.filename,
-        "image_scale": image_scale,
-        "position": position,
-        "opacity": opacity,
-        "page_selection": page_selection,
-        "specific_pages": specific_pages,
-    }
+    # 验证水印图片文件
+    if watermark_type == WatermarkTypeEnum.IMAGE and watermark_image:
+        allowed_image_extensions = [".jpg", ".jpeg", ".png", ".gif", ".bmp"]
+        image_ext = Path(watermark_image.filename or "").suffix.lower()
+        if image_ext not in allowed_image_extensions:
+            raise HTTPException(
+                status_code=400,
+                detail=f"图片格式不支持，支持的格式: {', '.join(allowed_image_extensions)}",
+            )
 
-    print(content)
+    # 创建请求对象
+    try:
+        request = WatermarkRequest(
+            watermark_type=watermark_type,
+            position=position,
+            opacity=opacity / 100.0,  # 前端传百分比，转换为小数
+            watermark_text=watermark_text,
+            font_size=font_size,
+            font_color=font_color,
+            image_scale=image_scale,
+            page_selection=page_selection,
+            specific_pages=specific_pages,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"参数验证失败: {str(e)}")
 
-    raise NotImplementedError("水印功能尚未实现")
+    # 执行水印添加
+    result = await pdf_service.add_watermark(file, watermark_image, request)
+
+    # 返回下载响应
+    filename = f"watermarked_{Path(file.filename).stem}"
+    return pdf_service.create_download_response(result, filename)

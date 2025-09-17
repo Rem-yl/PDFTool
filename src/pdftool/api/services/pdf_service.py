@@ -11,22 +11,21 @@ from fastapi import HTTPException, UploadFile
 
 from ...core.exceptions import PDFToolError
 from ...core.models import (
-    ExtractOptions,
     MergeOptions,
     OperationResult,
     PageSelectionMode,
     PageSelectionOptions,
-    PDFInfo,
-    SplitMode,
-    SplitOptions,
+    WatermarkOptions,
+    WatermarkPosition,
+    WatermarkType,
 )
 from ...core.pdf_operations import PDFOperations
 from ...utils.logging import get_logger
 from ..schemas.requests import (
     PageSelectionModeEnum,
-    PDFExtractRequest,
     PDFMergeRequest,
     PDFPageSelectionRequest,
+    WatermarkRequest,
 )
 from ..schemas.responses import FileUploadResponse, PDFInfoResponse
 
@@ -39,11 +38,11 @@ class PDFService:
     def __init__(self, pdf_operations: PDFOperations):
         self.pdf_ops = pdf_operations
 
-    async def save_upload_file(self, upload_file: UploadFile) -> Path:
+    async def save_upload_file(self, upload_file: UploadFile, validate_pdf: bool = True) -> Path:
         """保存上传的文件到临时目录"""
         try:
             # 验证文件类型
-            if not upload_file.filename.endswith(".pdf"):
+            if validate_pdf and not upload_file.filename.endswith(".pdf"):
                 raise HTTPException(status_code=400, detail="文件必须是PDF格式")
 
             # 创建临时文件
@@ -196,6 +195,89 @@ class PDFService:
             # 清理临时文件
             if temp_input:
                 self.pdf_ops.cleanup_temp_files([temp_input])
+
+    async def add_watermark(
+        self, file: UploadFile, watermark_file: Optional[UploadFile], request: WatermarkRequest
+    ) -> OperationResult:
+        """添加水印到PDF"""
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="文件不能为空")
+
+        temp_input = None
+        temp_watermark_image = None
+        try:
+            # 保存上传的PDF文件
+            temp_input = await self.save_upload_file(file)
+
+            # 处理水印图片（如果是图片水印）
+            if request.watermark_type.value == "image" and watermark_file:
+                temp_watermark_image = await self.save_upload_file(
+                    watermark_file, validate_pdf=False
+                )
+
+            # 解析页面列表
+            specific_pages = None
+            if request.page_selection in ["pages", "range"] and request.specific_pages:
+                try:
+                    from ..dependencies import parse_page_list
+
+                    specific_pages = parse_page_list(request.specific_pages)
+                except ValueError as e:
+                    raise HTTPException(status_code=400, detail=f"页面格式错误: {str(e)}")
+
+            # 转换枚举值
+            watermark_type = (
+                WatermarkType.TEXT
+                if request.watermark_type.value == "text"
+                else WatermarkType.IMAGE
+            )
+            position = WatermarkPosition(request.position.value)
+
+            # 页面选择模式转换
+            if request.page_selection == "all":
+                page_selection = PageSelectionMode.ALL_PAGES
+            else:
+                page_selection = PageSelectionMode.SPECIFIC_PAGES
+
+            # 创建水印选项
+            options = WatermarkOptions(
+                watermark_type=watermark_type,
+                position=position,
+                opacity=request.opacity,
+                text=request.watermark_text,
+                font_size=request.font_size,
+                font_color=request.font_color,
+                image_path=temp_watermark_image,
+                image_scale=request.image_scale,
+                page_selection=page_selection,
+                specific_pages=specific_pages,
+            )
+
+            # 执行水印操作
+            result = self.pdf_ops.add_watermark(temp_input, options)
+
+            if result.success:
+                logger.info(f"PDF水印添加成功: {file.filename}")
+            else:
+                logger.error(f"PDF水印添加失败: {result.message}")
+
+            return result
+
+        except PDFToolError as e:
+            logger.error(f"PDF水印添加失败: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error(f"PDF水印添加异常: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"添加水印时出错: {str(e)}")
+        finally:
+            # 清理临时文件
+            temp_files = []
+            if temp_input:
+                temp_files.append(temp_input)
+            if temp_watermark_image:
+                temp_files.append(temp_watermark_image)
+            if temp_files:
+                self.pdf_ops.cleanup_temp_files(temp_files)
 
     def create_download_response(self, result: OperationResult, filename: str):
         """创建文件下载响应"""

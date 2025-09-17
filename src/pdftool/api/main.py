@@ -6,6 +6,7 @@ import uvicorn
 
 from ..config.settings import settings
 from ..utils.logging import get_logger
+from .app import app
 
 logger = get_logger("api.main")
 

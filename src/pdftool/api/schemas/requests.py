@@ -86,6 +86,40 @@ class PDFExtractRequest(BaseModel):
         return sorted(v)
 
 
+class WatermarkRequest(BaseModel):
+    """水印请求模型"""
+
+    watermark_type: WatermarkTypeEnum = Field(..., description="水印类型")
+    position: WatermarkPositionEnum = Field(..., description="水印位置")
+    opacity: float = Field(..., ge=0.1, le=1.0, description="透明度(0.1-1.0)")
+
+    # 文本水印参数
+    watermark_text: Optional[str] = Field(None, description="水印文本")
+    font_size: Optional[int] = Field(36, ge=12, le=100, description="字体大小")
+    font_color: Optional[str] = Field("#000000", description="字体颜色(十六进制)")
+
+    # 图片水印参数
+    image_scale: Optional[float] = Field(100, ge=10, le=300, description="图片缩放百分比")
+
+    # 页面选择
+    page_selection: PageSelectionModeEnum = Field(
+        PageSelectionModeEnum.ALL, description="页面选择模式"
+    )
+    specific_pages: Optional[str] = Field(None, description="指定页面(如: 1,3,5-8)")
+
+    @validator("watermark_text")
+    def validate_text_watermark(cls, v, values):
+        if values.get("watermark_type") == WatermarkTypeEnum.TEXT and not v:
+            raise ValueError("文本水印需要提供水印文本")
+        return v
+
+    @validator("font_color")
+    def validate_font_color(cls, v):
+        if v and not v.startswith("#") or len(v) != 7:
+            raise ValueError("字体颜色必须是7位十六进制格式 (#RRGGBB)")
+        return v
+
+
 class UploadConfig(BaseModel):
     """上传配置模型"""
 
