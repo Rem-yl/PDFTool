@@ -7,14 +7,13 @@ import logging
 import shutil
 import zipfile
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional
 from uuid import uuid4
 
 import PyPDF2
 from PIL import Image
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 
 from .exceptions import PDFFileNotFoundError, PDFProcessingError, PDFValidationError
@@ -146,7 +145,12 @@ class PDFOperations:
 
                         output_files.append(output_file)
 
-                elif options.mode == SplitMode.PAGE_RANGE:
+                elif (
+                    options.mode == SplitMode.SPECIFIC_PAGES
+                    and options.start_page
+                    and options.end_page
+                ):
+                    # Handle page range mode using start_page and end_page
                     start = (options.start_page or 1) - 1
                     end = options.end_page or total_pages
 
@@ -174,6 +178,9 @@ class PDFOperations:
                     output_files=output_files,
                 )
 
+        except PDFValidationError:
+            # Re-raise validation errors as-is
+            raise
         except Exception as e:
             raise PDFProcessingError(f"Failed to split PDF: {str(e)}")
 

@@ -338,7 +338,9 @@ class ModernPDFTool:
             self.update_status("正在拆分PDF文件...")
 
             # Setup split options
-            mode = SplitMode.ALL_PAGES if self.split_mode.get() == "all" else SplitMode.PAGE_RANGE
+            mode = (
+                SplitMode.ALL_PAGES if self.split_mode.get() == "all" else SplitMode.SPECIFIC_PAGES
+            )
             start_page = int(self.start_page_var.get()) if self.start_page_var.get() else None
             end_page = int(self.end_page_var.get()) if self.end_page_var.get() else None
 

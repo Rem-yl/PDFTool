@@ -15,7 +15,7 @@ from pdftool.core.exceptions import (
 )
 from pdftool.core.models import (
     MergeOptions,
-    SplitMode,
+    PageSelectionMode,
     SplitOptions,
     WatermarkOptions,
     WatermarkPosition,
@@ -88,7 +88,8 @@ class TestPDFOperations:
             tmp_path.unlink(missing_ok=True)
 
     @patch("pdftool.core.pdf_operations.PyPDF2.PdfMerger")
-    def test_merge_pdfs_success(self, mock_merger, pdf_ops):
+    @patch("pdftool.core.pdf_operations.PDFOperations.validate_pdf_file")
+    def test_merge_pdfs_success(self, mock_validate, mock_merger, pdf_ops):
         """Test successful PDF merging"""
         # Create temporary PDF files
         pdf_files = []
@@ -126,7 +127,8 @@ class TestPDFOperations:
 
     @patch("pdftool.core.pdf_operations.PyPDF2.PdfReader")
     @patch("pdftool.core.pdf_operations.PyPDF2.PdfWriter")
-    def test_split_pdf_all_pages(self, mock_writer, mock_reader, pdf_ops):
+    @patch("pdftool.core.pdf_operations.PDFOperations.validate_pdf_file")
+    def test_split_pdf_all_pages(self, mock_validate, mock_writer, mock_reader, pdf_ops):
         """Test PDF splitting all pages"""
         # Mock PDF reader
         mock_reader_instance = Mock()
@@ -143,7 +145,7 @@ class TestPDFOperations:
             tmp.write(b"dummy pdf content")
 
         try:
-            options = SplitOptions(mode=SplitMode.ALL_PAGES)
+            options = SplitOptions(mode=PageSelectionMode.ALL_PAGES)
             result = pdf_ops.split_pdf(tmp_path, options)
 
             assert result.success
@@ -155,7 +157,8 @@ class TestPDFOperations:
 
     @patch("pdftool.core.pdf_operations.PyPDF2.PdfReader")
     @patch("pdftool.core.pdf_operations.PyPDF2.PdfWriter")
-    def test_split_pdf_page_range(self, mock_writer, mock_reader, pdf_ops):
+    @patch("pdftool.core.pdf_operations.PDFOperations.validate_pdf_file")
+    def test_split_pdf_page_range(self, mock_validate, mock_writer, mock_reader, pdf_ops):
         """Test PDF splitting by page range"""
         # Mock PDF reader
         mock_reader_instance = Mock()
@@ -172,7 +175,7 @@ class TestPDFOperations:
             tmp.write(b"dummy pdf content")
 
         try:
-            options = SplitOptions(mode=SplitMode.PAGE_RANGE, start_page=2, end_page=4)
+            options = SplitOptions(mode=PageSelectionMode.SPECIFIC_PAGES, start_page=2, end_page=4)
             result = pdf_ops.split_pdf(tmp_path, options)
 
             assert result.success
@@ -188,13 +191,15 @@ class TestPDFOperations:
             tmp.write(b"dummy pdf content")
 
         try:
-            with patch("pdftool.core.pdf_operations.PyPDF2.PdfReader") as mock_reader:
+            with patch("pdftool.core.pdf_operations.PyPDF2.PdfReader") as mock_reader, patch(
+                "pdftool.core.pdf_operations.PDFOperations.validate_pdf_file"
+            ):
                 mock_reader_instance = Mock()
                 mock_reader_instance.pages = [Mock(), Mock()]  # 2 pages
                 mock_reader.return_value = mock_reader_instance
 
                 options = SplitOptions(
-                    mode=SplitMode.PAGE_RANGE,
+                    mode=PageSelectionMode.SPECIFIC_PAGES,
                     start_page=3,  # Invalid: beyond available pages
                     end_page=5,
                 )

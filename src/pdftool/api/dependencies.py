@@ -10,12 +10,24 @@ from fastapi import Depends, HTTPException, status
 from ..config.settings import settings
 from ..core.pdf_operations import PDFOperations
 from ..utils.logging import get_logger
+from .service_manager import ServiceManager
 
 logger = get_logger("api.dependencies")
 
+# Global service manager instance
+_service_manager = None
+
+
+def get_service_manager() -> ServiceManager:
+    """获取服务管理器实例"""
+    global _service_manager
+    if _service_manager is None:
+        _service_manager = ServiceManager(temp_dir=settings.temp_dir)
+    return _service_manager
+
 
 def get_pdf_operations() -> PDFOperations:
-    """获取PDF操作实例"""
+    """获取PDF操作实例 (保持向后兼容)"""
     return PDFOperations(temp_dir=settings.temp_dir)
 
 
