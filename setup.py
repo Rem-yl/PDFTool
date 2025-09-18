@@ -21,7 +21,7 @@ setup(
     version="1.0.0",
     author="PDFTool Team",
     author_email="contact@pdftool.com",
-    description="A comprehensive PDF manipulation tool with GUI and API interfaces",
+    description="A comprehensive PDF manipulation tool with Web API interface and plugin architecture",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Rem-yl/PDFTool",
@@ -50,15 +50,13 @@ setup(
             "flake8>=5.0.0",
             "mypy>=1.0.0",
             "pre-commit>=2.20.0",
-        ],
-        "api": [
-            "pydantic>=1.10.0",
+            "isort>=5.0.0",
+            "pip-audit>=2.0.0",
         ],
     },
     entry_points={
         "console_scripts": [
-            "pdftool-gui=pdftool.gui.main:main",
-            "pdftool=pdftool.api.main:main",
+            "pdftool=pdftool.interfaces.web.main:main",
         ],
     },
     include_package_data=True,
