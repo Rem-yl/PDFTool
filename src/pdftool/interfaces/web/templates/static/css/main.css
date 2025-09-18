@@ -466,18 +466,18 @@ body {
 
 .feature-card {
     background: var(--vp-c-bg);
-    border-radius: 16px;
-    padding: 20px;
+    border-radius: 20px;
+    padding: 24px;
     border: 1px solid var(--vp-c-divider);
-    transition: all 0.25s ease;
+    transition: all 0.3s ease;
     cursor: pointer;
     position: relative;
     overflow: hidden;
-    min-height: 140px;
+    min-height: 160px;
     display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    align-items: flex-start;
+    gap: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .feature-card:hover {
@@ -488,42 +488,67 @@ body {
 }
 
 .feature-icon {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
-    background: linear-gradient(120deg, var(--vp-c-brand) 30%, #41d1ff);
-    border-radius: 10px;
-    margin-bottom: 12px;
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, var(--vp-c-brand) 0%, var(--vp-c-brand-light) 100%);
+    border-radius: 16px;
     color: white;
-    transition: transform 0.25s ease;
+    font-size: 24px;
+    transition: all 0.3s ease;
     flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    position: relative;
+    overflow: hidden;
 }
 
 .feature-card:hover .feature-icon {
-    transform: scale(1.1);
+    transform: scale(1.1) rotate(5deg);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
 }
 
-.feature-icon svg {
-    width: 20px;
-    height: 20px;
+.feature-icon::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(255, 255, 255, 0.3), transparent);
+    border-radius: 16px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.feature-card:hover .feature-icon::before {
+    opacity: 1;
+}
+
+.feature-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 80px;
 }
 
 .feature-title {
-    margin: 0 0 8px;
-    font-size: 16px;
-    font-weight: 600;
+    margin: 0 0 10px;
+    font-size: 18px;
+    font-weight: 700;
     color: var(--vp-c-text-1);
     line-height: 1.3;
+    letter-spacing: -0.01em;
 }
 
 .feature-description {
     margin: 0;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 400;
     color: var(--vp-c-text-2);
-    line-height: 1.5;
+    line-height: 1.6;
     flex-grow: 1;
 }
 
@@ -636,16 +661,27 @@ body {
 
 .coming-soon-badge {
     position: absolute;
-    top: 8px;
-    right: 8px;
-    background: linear-gradient(120deg, var(--vp-c-brand) 30%, #41d1ff);
+    top: 16px;
+    right: 16px;
+    background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
     color: white;
-    font-size: 9px;
-    font-weight: 600;
-    padding: 3px 6px;
-    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 12px;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
 }
 
 /* Responsive Design */
@@ -674,8 +710,24 @@ body {
     }
 
     .feature-card {
-        padding: 16px;
-        min-height: 120px;
+        padding: 20px;
+        min-height: 140px;
+        gap: 14px;
+    }
+
+    .feature-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+    }
+
+    .feature-title {
+        font-size: 16px;
+    }
+
+    .feature-description {
+        font-size: 13px;
+        line-height: 1.4;
     }
 
     .category-nav {
@@ -741,11 +793,44 @@ body {
     }
 
     .feature-card {
-        padding: 20px;
+        padding: 16px;
+        min-height: 120px;
+        gap: 12px;
+        flex-direction: row;
+    }
+
+    .feature-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+        border-radius: 12px;
+    }
+
+    .feature-title {
+        font-size: 15px;
+        margin-bottom: 6px;
+    }
+
+    .feature-description {
+        font-size: 12px;
+        line-height: 1.3;
     }
 
     .header {
         padding: 12px 16px;
+    }
+
+    .back-button {
+        left: 12px;
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    .theme-toggle {
+        right: 12px;
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
     }
 
     .category-nav {
