@@ -9,7 +9,7 @@ import PyPDF2
 
 from ....common.exceptions import PDFProcessingError
 from ....common.interfaces import BasePDFOperation
-from ....common.models import OperationResult, PDFInfo
+from ....common.models import PDFInfo
 
 logger = logging.getLogger(__name__)
 

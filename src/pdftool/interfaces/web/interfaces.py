@@ -63,10 +63,8 @@ class BaseServiceHandler(IServiceHandler):
             operation_executor: 操作执行器
             resource_manager: 资源管理器
         """
-        from ...common.interfaces.processor import IOperationExecutor, IResourceManager
-
-        self.operation_executor: IOperationExecutor = operation_executor
-        self.resource_manager: IResourceManager = resource_manager
+        self.operation_executor = operation_executor
+        self.resource_manager = resource_manager
 
     async def save_upload_file(self, upload_file: UploadFile, validate_pdf: bool = True) -> Path:
         """Save uploaded file to temporary directory"""
@@ -89,6 +87,18 @@ class BaseServiceHandler(IServiceHandler):
             logger.error(f"保存上传文件失败: {str(e)}")
             raise HTTPException(status_code=500, detail=f"保存文件失败: {str(e)}")
 
+    def _cleanup_files(self, files: list):
+        """Simple cleanup function for temporary files"""
+        import os
+
+        for file_path in files:
+            try:
+                if os.path.exists(file_path):
+                    os.unlink(file_path)
+                    logger.info(f"已清理临时文件: {file_path}")
+            except Exception as e:
+                logger.warning(f"清理文件失败 {file_path}: {str(e)}")
+
     def create_download_response(self, result: OperationResult, filename: str):
         """Create file download response"""
         from fastapi.responses import FileResponse
@@ -103,7 +113,7 @@ class BaseServiceHandler(IServiceHandler):
         if len(result.output_files) > 1:
             # Multiple files, create ZIP archive
             if self.resource_manager is None:
-                raise HTTPException(status_code=500, detail="资源管理器未初始化")
+                raise HTTPException(status_code=500, detail="资源管理器未初始化，无法处理多文件")
 
             zip_file = self.resource_manager.create_archive(result.output_files)
             cleanup_files = [zip_file] + result.output_files
@@ -114,10 +124,15 @@ class BaseServiceHandler(IServiceHandler):
                 background=BackgroundTask(self.resource_manager.cleanup_resources, cleanup_files),
             )
         else:
-            # Single file
+            # Single file - use simple cleanup if no resource manager
+            cleanup_func = (
+                self.resource_manager.cleanup_resources
+                if self.resource_manager
+                else self._cleanup_files
+            )
             return FileResponse(
                 path=str(output_file),
                 filename=f"{filename}.pdf",
                 media_type="application/pdf",
-                background=BackgroundTask(self.resource_manager.cleanup_resources, [output_file]),
+                background=BackgroundTask(cleanup_func, [output_file]),
             )

@@ -10,6 +10,7 @@ from fastapi import HTTPException, UploadFile
 from ....common.exceptions import PDFToolError
 from ....common.models import MergeOptions, OperationResult
 from ....common.utils.logging import get_logger
+from ....domains.document.operations import MergeOperation
 from ..interfaces import BaseServiceHandler
 from ..schemas.requests import PDFMergeRequest
 
@@ -18,6 +19,10 @@ logger = get_logger("api.handlers.merge")
 
 class MergeServiceHandler(BaseServiceHandler):
     """Service handler for PDF merge operations"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.merge_operation = MergeOperation()
 
     @property
     def service_name(self) -> str:
@@ -42,7 +47,7 @@ class MergeServiceHandler(BaseServiceHandler):
                 options.preserve_metadata = request.preserve_metadata
 
             # Execute merge operation
-            result = self.pdf_processor.merge_pdfs(temp_files, options)
+            result = self.merge_operation.execute(temp_files, options)
 
             if result.success:
                 logger.info(f"PDF合并成功: {len(files)}个文件")
@@ -59,5 +64,5 @@ class MergeServiceHandler(BaseServiceHandler):
             raise HTTPException(status_code=500, detail=f"合并PDF时出错: {str(e)}")
         finally:
             # Cleanup temporary files
-            if self.pdf_processor:
-                self.pdf_processor.cleanup_temp_files(temp_files)
+            if hasattr(self.merge_operation, "cleanup_temp_files"):
+                self.merge_operation.cleanup_temp_files(temp_files)

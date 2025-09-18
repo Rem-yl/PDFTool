@@ -8,6 +8,7 @@ from fastapi import HTTPException, UploadFile
 
 from ....common.exceptions import PDFToolError
 from ....common.utils.logging import get_logger
+from ....domains.document.operations import InfoOperation
 from ..interfaces import BaseServiceHandler
 from ..schemas.responses import PDFInfoResponse
 
@@ -16,6 +17,10 @@ logger = get_logger("api.handlers.info")
 
 class InfoServiceHandler(BaseServiceHandler):
     """Service handler for PDF info operations"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.info_operation = InfoOperation()
 
     @property
     def service_name(self) -> str:
@@ -33,7 +38,7 @@ class InfoServiceHandler(BaseServiceHandler):
             temp_file = await self.save_upload_file(file)
 
             # Get PDF info
-            pdf_info = self.pdf_processor.get_pdf_info(temp_file)
+            pdf_info = self.info_operation.execute(temp_file)
 
             # Get file size
             content = await file.read()
@@ -57,5 +62,5 @@ class InfoServiceHandler(BaseServiceHandler):
             raise HTTPException(status_code=500, detail=f"读取PDF信息时出错: {str(e)}")
         finally:
             # Cleanup temporary file
-            if temp_file and self.pdf_processor:
-                self.pdf_processor.cleanup_temp_files([temp_file])
+            if temp_file and hasattr(self.info_operation, "cleanup_temp_files"):
+                self.info_operation.cleanup_temp_files([temp_file])

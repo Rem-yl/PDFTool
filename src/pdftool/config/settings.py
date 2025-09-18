@@ -2,7 +2,6 @@
 Configuration settings for PDFTool
 """
 
-import os
 from pathlib import Path
 from typing import List, Optional
 

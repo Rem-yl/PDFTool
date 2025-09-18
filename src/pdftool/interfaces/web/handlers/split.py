@@ -10,6 +10,7 @@ from fastapi import HTTPException, UploadFile
 from ....common.exceptions import PDFToolError
 from ....common.models import OperationResult, PageSelectionMode, PageSelectionOptions
 from ....common.utils.logging import get_logger
+from ....domains.document.operations import SplitOperation
 from ..interfaces import BaseServiceHandler
 from ..schemas.requests import PageSelectionModeEnum, PDFPageSelectionRequest
 
@@ -18,6 +19,10 @@ logger = get_logger("api.handlers.split")
 
 class SplitServiceHandler(BaseServiceHandler):
     """Service handler for PDF split operations"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.split_operation = SplitOperation()
 
     @property
     def service_name(self) -> str:
@@ -54,7 +59,7 @@ class SplitServiceHandler(BaseServiceHandler):
             )
 
             # Execute split operation
-            result = self.pdf_processor.split_pdf(temp_input, options)
+            result = self.split_operation.execute(temp_input, options)
 
             if result.success:
                 logger.info(f"PDF页面选择成功: {file.filename}, 模式: {request.mode}")
@@ -71,5 +76,5 @@ class SplitServiceHandler(BaseServiceHandler):
             raise HTTPException(status_code=500, detail=f"页面选择时出错: {str(e)}")
         finally:
             # Cleanup temporary file
-            if temp_input and self.pdf_processor:
-                self.pdf_processor.cleanup_temp_files([temp_input])
+            if temp_input and hasattr(self.split_operation, "cleanup_temp_files"):
+                self.split_operation.cleanup_temp_files([temp_input])

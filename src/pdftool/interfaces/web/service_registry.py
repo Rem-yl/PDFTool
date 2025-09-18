@@ -2,11 +2,12 @@
 Service registry for API handlers - Decoupled architecture
 """
 
-from typing import Dict, Optional, Type
+from typing import Dict, Type
 
-from ...common.interfaces.processor import IServiceProvider
-from ...common.services.service_provider import get_service_provider
+from ...common.utils.logging import get_logger
 from .interfaces import IServiceHandler, IServiceRegistry
+
+logger = get_logger("service_registry")
 
 
 class ServiceRegistry(IServiceRegistry):
@@ -15,23 +16,19 @@ class ServiceRegistry(IServiceRegistry):
     使用依赖注入而不是直接依赖具体的处理器类
     """
 
-    def __init__(self, service_provider: Optional[IServiceProvider] = None):
+    def __init__(self):
         """
         初始化服务注册表
-
-        Args:
-            service_provider: 依赖注入容器，如果为None则使用全局服务提供者
         """
-        self.service_provider = service_provider or get_service_provider()
         self._handlers: Dict[str, Type[IServiceHandler]] = {}
-        self._handler_dependencies: Dict[str, Dict[str, Type]] = {}
+        self._handler_dependencies: Dict[str, Dict] = {}
         self._register_default_handlers()
 
     def register_handler(
         self,
         service_name: str,
         handler_class: Type[IServiceHandler],
-        dependencies: Optional[Dict[str, Type]] = None,
+        dependencies: Dict = None,
     ) -> None:
         """
         注册服务处理器
@@ -39,10 +36,11 @@ class ServiceRegistry(IServiceRegistry):
         Args:
             service_name: 服务名称
             handler_class: 处理器类
-            dependencies: 处理器依赖的服务类型映射
+            dependencies: 依赖项映射
         """
         self._handlers[service_name] = handler_class
         self._handler_dependencies[service_name] = dependencies or {}
+        logger.info(f"Service: {service_name} has been registered.")
 
     def get_handler(self, service_name: str) -> IServiceHandler:
         """
@@ -62,21 +60,9 @@ class ServiceRegistry(IServiceRegistry):
             raise ValueError(f"Unknown service: {service_name}. Available: {available}")
 
         handler_class = self._handlers[service_name]
-        dependencies = self._handler_dependencies.get(service_name, {})
 
-        # 解析依赖并创建实例
-        resolved_dependencies = {}
-        for dep_name, dep_type in dependencies.items():
-            if self.service_provider.has_service(dep_type):
-                resolved_dependencies[dep_name] = self.service_provider.get_service(dep_type)
-            else:
-                raise RuntimeError(
-                    f"Required dependency {dep_type} not found for service {service_name}"
-                )
-
-        # 创建处理器实例
         try:
-            return handler_class(**resolved_dependencies)
+            return handler_class()
         except Exception as e:
             raise RuntimeError(f"Failed to create handler for {service_name}: {str(e)}")
 
@@ -108,31 +94,22 @@ class ServiceRegistry(IServiceRegistry):
             "class": handler_class.__name__,
             "module": handler_class.__module__,
             "doc": handler_class.__doc__ or "No documentation",
-            "dependencies": list(dependencies.keys()),
         }
 
     def _register_default_handlers(self) -> None:
         """注册默认的服务处理器"""
-        # 导入这里以避免循环导入
-        from ...common.interfaces.processor import IOperationExecutor, IResourceManager
-
         try:
             from .handlers.info import InfoServiceHandler
             from .handlers.merge import MergeServiceHandler
             from .handlers.split import SplitServiceHandler
             from .handlers.watermark import WatermarkServiceHandler
 
-            # 定义每个处理器的依赖, 类似于给每个Handler赋予操作执行器
-            common_dependencies = {
-                "operation_executor": IOperationExecutor,
-                "resource_manager": IResourceManager,
-            }
+            # Register handlers without complex dependencies for now
+            self.register_handler("merge", MergeServiceHandler)
+            self.register_handler("split", SplitServiceHandler)
+            self.register_handler("info", InfoServiceHandler)
+            self.register_handler("watermark", WatermarkServiceHandler)
 
-            self.register_handler("merge", MergeServiceHandler, common_dependencies)
-            self.register_handler("split", SplitServiceHandler, common_dependencies)
-            self.register_handler("info", InfoServiceHandler, common_dependencies)
-            self.register_handler("watermark", WatermarkServiceHandler, common_dependencies)
-
-        except ImportError:
-            # 如果处理器类不存在，跳过注册
+        except ImportError as e:
+            logger.warning(f"Failed to import some service handlers: {e}")
             pass

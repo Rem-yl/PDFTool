@@ -15,6 +15,7 @@ from ....common.models import (
     WatermarkType,
 )
 from ....common.utils.logging import get_logger
+from ....domains.document.operations import WatermarkOperation
 from ..interfaces import BaseServiceHandler
 from ..schemas.requests import WatermarkRequest
 
@@ -23,6 +24,10 @@ logger = get_logger("api.handlers.watermark")
 
 class WatermarkServiceHandler(BaseServiceHandler):
     """Service handler for PDF watermark operations"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.watermark_operation = WatermarkOperation()
 
     @property
     def service_name(self) -> str:
@@ -90,7 +95,7 @@ class WatermarkServiceHandler(BaseServiceHandler):
             )
 
             # Execute watermark operation
-            result = self.pdf_processor.add_watermark(temp_input, options)
+            result = self.watermark_operation.execute(temp_input, options)
 
             if result.success:
                 logger.info(f"PDF水印添加成功: {file.filename}")
@@ -112,5 +117,5 @@ class WatermarkServiceHandler(BaseServiceHandler):
                 temp_files.append(temp_input)
             if temp_watermark_image:
                 temp_files.append(temp_watermark_image)
-            if temp_files and self.pdf_processor:
-                self.pdf_processor.cleanup_temp_files(temp_files)
+            if temp_files and hasattr(self.watermark_operation, "cleanup_temp_files"):
+                self.watermark_operation.cleanup_temp_files(temp_files)
