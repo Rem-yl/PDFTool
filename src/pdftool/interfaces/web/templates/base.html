@@ -3,26 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}PDFTool - PDF操作工具{% endblock %}</title>
+    <title>{% block title %}PDFTool - 专业PDF操作工具{% endblock %}</title>
+    <meta name="description" content="{% block description %}专业、快速、安全的PDF处理工具 - 支持合并、拆分、水印、信息提取等功能{% endblock %}">
+    <meta name="keywords" content="PDF, 合并, 拆分, 水印, 信息提取, PDF工具">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📄</text></svg>">
+
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="{{ url_for('static', path='/css/main.css') }}">
     {% block extra_css %}{% endblock %}
+
+    <!-- Preload fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            {% if show_back_button %}
-            <button class="back-button" onclick="goHome()">← 返回</button>
-            {% endif %}
-            <h1>{% block header_icon %}📄{% endblock %} {% block header_title %}PDFTool{% endblock %}</h1>
-            <p>{% block header_description %}专业的PDF操作工具 - 合并、拆分、信息提取{% endblock %}</p>
-        </div>
-        
-        <div class="content">
-            {% block content %}{% endblock %}
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p class="loading-text">正在处理中...</p>
         </div>
     </div>
 
+    <div class="container">
+        {% if not hide_header %}
+        <div class="header">
+            {% if show_back_button %}
+            <button class="back-button" onclick="goHome()" aria-label="返回首页">
+                <span class="back-icon">←</span>
+                <span class="back-text">返回</span>
+            </button>
+            {% endif %}
+
+            <div class="header-content">
+                <h1 class="header-title">
+                    <span class="header-icon">{% block header_icon %}📄{% endblock %}</span>
+                    <span class="header-text">{% block header_title %}PDFTool{% endblock %}</span>
+                </h1>
+                <p class="header-description">{% block header_description %}专业的PDF操作工具 - 合并、拆分、信息提取{% endblock %}</p>
+            </div>
+
+            <!-- Theme Toggle -->
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="切换主题" title="切换主题">
+                <span class="theme-icon">🌙</span>
+            </button>
+        </div>
+        {% endif %}
+
+        <div class="content">
+            <!-- Breadcrumb Navigation -->
+            {% if breadcrumb %}
+            <nav class="breadcrumb" aria-label="页面导航">
+                {% for item in breadcrumb %}
+                    {% if not loop.last %}
+                        <a href="{{ item.url }}" class="breadcrumb-item">{{ item.text }}</a>
+                        <span class="breadcrumb-separator">›</span>
+                    {% else %}
+                        <span class="breadcrumb-item current">{{ item.text }}</span>
+                    {% endif %}
+                {% endfor %}
+            </nav>
+            {% endif %}
+
+            <!-- Main Content -->
+            <main role="main">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+
+        <!-- Optional Footer (disabled by default) -->
+        {% if show_footer %}
+        <footer class="footer">
+            <div class="footer-content">
+                <p class="footer-text">
+                    &copy; 2024 PDFTool
+                    <a href="https://github.com/Rem-yl/PDFTool" class="footer-link" target="_blank" rel="noopener">GitHub</a>
+                </p>
+            </div>
+        </footer>
+        {% endif %}
+    </div>
+
+    <!-- Scripts -->
     <script src="{{ url_for('static', path='/js/common.js') }}"></script>
     {% block extra_js %}{% endblock %}
+
+    <!-- Analytics and Performance -->
+    <script>
+        // Performance monitoring
+        window.addEventListener('load', function() {
+            if ('performance' in window) {
+                const perfData = performance.getEntriesByType('navigation')[0];
+                console.log(`页面加载时间: ${perfData.loadEventEnd - perfData.fetchStart}ms`);
+            }
+        });
+
+        // Service Worker registration (if needed)
+        if ('serviceWorker' in navigator) {
+            // Register service worker for offline functionality
+            // navigator.serviceWorker.register('/sw.js');
+        }
+    </script>
 </body>
 </html>

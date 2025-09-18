@@ -1,48 +1,334 @@
 {% extends "base.html" %}
 
-{% block title %}PDFTool - 功能选择{% endblock %}
+{% block title %}PDFTool - 专业PDF处理工具{% endblock %}
 
 {% block content %}
-<div class="function-selection">
-    <h2>🎯 选择PDF操作功能</h2>
-    <p class="subtitle">请选择您要使用的PDF处理功能</p>
-    
-    <div class="function-cards">
-        <div class="function-card" onclick="goToFunction('merge')">
-            <div class="card-icon">🙌</div>
-            <div class="card-title">PDF合并</div>
-            <div class="card-description">将多个PDF文件合并为一个文件</div>
-            <div class="card-button">开始合并</div>
-        </div>
-        
-        <div class="function-card" onclick="goToFunction('pages')">
-            <div class="card-icon">👐</div>
-            <div class="card-title">PDF拆分</div>
-            <div class="card-description">选择、拆分、提取或合并PDF页面</div>
-            <div class="card-button">开始选择</div>
-        </div>
+<div class="vitepress-layout">
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <p class="hero-tagline">快速、安全、易用的PDF操作平台，支持合并、拆分、水印等多种功能</p>
 
-        <div class="function-card" onclick="goToFunction('watermark')">
-            <div class="card-icon">🐳</div>
-            <div class="card-title">添加水印</div>
-            <div class="card-description">在PDF文件上添加水印</div>
-            <div class="card-button">添加水印</div>
+            <div class="hero-actions">
+                <a class="hero-action primary" href="https://github.com/Rem-yl/PDFTool/wiki" target="_blank">查看文档</a>
+                <a class="hero-action alt" href="https://github.com/Rem-yl/PDFTool" target="_blank">查看源码</a>
+            </div>
         </div>
+    </section>
 
-        <div class="function-card" onclick="goToFunction('info')">
-            <div class="card-icon">ℹ️</div>
-            <div class="card-title">PDF信息</div>
-            <div class="card-description">查看PDF文件的详细信息和属性</div>
-            <div class="card-button">查看信息</div>
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="features-container">
+            <!-- Category Navigation -->
+            <div class="category-nav">
+                <button class="category-btn active" data-category="document" onclick="switchCategory('document')">
+                    <span class="category-icon">📝</span>
+                    <span class="category-text">文档处理</span>
+                </button>
+                <button class="category-btn" data-category="enhance" onclick="switchCategory('enhance')">
+                    <span class="category-icon">✨</span>
+                    <span class="category-text">文档增强</span>
+                </button>
+                <button class="category-btn" data-category="analysis" onclick="switchCategory('analysis')">
+                    <span class="category-icon">📊</span>
+                    <span class="category-text">文档分析</span>
+                </button>
+                <button class="category-btn" data-category="convert" onclick="switchCategory('convert')">
+                    <span class="category-icon">🔄</span>
+                    <span class="category-text">格式转换</span>
+                </button>
+            </div>
+
+            <!-- Category Content -->
+            <div class="category-content">
+                <!-- Document Processing -->
+                <div class="category-panel active" id="document-panel">
+                    <div class="features-grid">
+                        <div class="feature-card" onclick="goToFunction('merge')">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7,10 12,15 17,10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                            </div>
+                            <h3 class="feature-title">PDF 合并</h3>
+                            <p class="feature-description">
+                                将多个PDF文件智能合并为一个文档。支持批量处理，保持原始质量。
+                            </p>
+                        </div>
+
+                        <div class="feature-card" onclick="goToFunction('pages')">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14,2 14,8 20,8"/>
+                                    <line x1="16" y1="13" x2="8" y2="13"/>
+                                    <line x1="16" y1="17" x2="8" y2="17"/>
+                                </svg>
+                            </div>
+                            <h3 class="feature-title">PDF 拆分</h3>
+                            <p class="feature-description">
+                                精确拆分PDF页面，支持按页面范围、单页提取等多种拆分方式。
+                            </p>
+                        </div>
+
+                        <div class="feature-card coming-soon">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                    <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                </svg>
+                            </div>
+                            <h3 class="feature-title">PDF 编辑</h3>
+                            <p class="feature-description">
+                                直接编辑PDF内容，添加文字、图片，删除或修改现有内容。
+                            </p>
+                            <span class="coming-soon-badge">即将推出</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Document Enhancement -->
+                <div class="category-panel" id="enhance-panel">
+                    <div class="features-grid">
+                        <div class="feature-card" onclick="goToFunction('watermark')">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                                </svg>
+                            </div>
+                            <h3 class="feature-title">添加水印</h3>
+                            <p class="feature-description">
+                                为PDF文件添加个性化水印保护，支持文字和图片水印。
+                            </p>
+                        </div>
+
+                        <div class="feature-card coming-soon">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <circle cx="12" cy="16" r="1"/>
+                                    <path d="m7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                            </div>
+                            <h3 class="feature-title">密码保护</h3>
+                            <p class="feature-description">
+                                为PDF文件添加密码保护，设置访问权限和编辑权限。
+                            </p>
+                            <span class="coming-soon-badge">即将推出</span>
+                        </div>
+
+                        <div class="feature-card coming-soon">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                                    <circle cx="12" cy="13" r="3"/>
+                                </svg>
+                            </div>
+                            <h3 class="feature-title">数字签名</h3>
+                            <p class="feature-description">
+                                为PDF文档添加数字签名，确保文档的完整性和真实性。
+                            </p>
+                            <span class="coming-soon-badge">即将推出</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Document Analysis -->
+                <div class="category-panel" id="analysis-panel">
+                    <div class="features-grid">
+                        <div class="feature-card" onclick="goToFunction('info')">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <line x1="12" y1="16" x2="12" y2="12"/>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                                </svg>
+                            </div>
+                            <h3 class="feature-title">文档信息</h3>
+                            <p class="feature-description">
+                                查看PDF文件的详细元数据和属性信息，包括大小、页数等。
+                            </p>
+                        </div>
+
+                        <div class="feature-card coming-soon">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 3v18h18"/>
+                                    <path d="m19 9-5 5-4-4-3 3"/>
+                                </svg>
+                            </div>
+                            <h3 class="feature-title">文档统计</h3>
+                            <p class="feature-description">
+                                深度分析PDF内容，统计字数、图片数量、字体使用等信息。
+                            </p>
+                            <span class="coming-soon-badge">即将推出</span>
+                        </div>
+
+                        <div class="feature-card coming-soon">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 12l2 2 4-4"/>
+                                    <path d="M21 12c.552 0 1-.448 1-1V5c0-.552-.448-1-1-1H3c-.552 0-1 .448-1 1v6c0 .552.448 1 1 1h9l4-4-4-4H3"/>
+                                </svg>
+                            </div>
+                            <h3 class="feature-title">质量检测</h3>
+                            <p class="feature-description">
+                                检测PDF文档的质量问题，如损坏页面、格式错误等。
+                            </p>
+                            <span class="coming-soon-badge">即将推出</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Format Conversion -->
+                <div class="category-panel" id="convert-panel">
+                    <div class="features-grid">
+                        <div class="feature-card coming-soon">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14,2 14,8 20,8"/>
+                                    <line x1="16" y1="13" x2="8" y2="13"/>
+                                    <line x1="16" y1="17" x2="8" y2="17"/>
+                                </svg>
+                            </div>
+                            <h3 class="feature-title">PDF转Word</h3>
+                            <p class="feature-description">
+                                将PDF文档转换为可编辑的Word文档，保持格式和布局。
+                            </p>
+                            <span class="coming-soon-badge">即将推出</span>
+                        </div>
+
+                        <div class="feature-card coming-soon">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                    <circle cx="9" cy="9" r="2"/>
+                                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                                </svg>
+                            </div>
+                            <h3 class="feature-title">PDF转图片</h3>
+                            <p class="feature-description">
+                                将PDF页面转换为高质量的JPG、PNG等图片格式。
+                            </p>
+                            <span class="coming-soon-badge">即将推出</span>
+                        </div>
+
+                        <div class="feature-card coming-soon">
+                            <div class="feature-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                    <line x1="7" y1="8" x2="17" y2="8"/>
+                                    <line x1="7" y1="12" x2="17" y2="12"/>
+                                </svg>
+                            </div>
+                            <h3 class="feature-title">文字提取</h3>
+                            <p class="feature-description">
+                                从PDF文档中提取文字内容，支持OCR识别扫描文档。
+                            </p>
+                            <span class="coming-soon-badge">即将推出</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
+    </section>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
     function goToFunction(functionName) {
-        window.location.href = `/${functionName}`;
+        // Add loading animation
+        const clickedElement = event.target.closest('.feature-card, .quick-btn');
+        if (clickedElement && !clickedElement.classList.contains('coming-soon')) {
+            clickedElement.classList.add('loading');
+            showNotification('正在加载...', 'info', 1000);
+        }
+
+        // Navigate after brief delay for UX
+        setTimeout(() => {
+            window.location.href = `/${functionName}`;
+        }, 100);
     }
+
+    function switchCategory(categoryName) {
+        // Remove active class from all buttons and panels
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelectorAll('.category-panel').forEach(panel => {
+            panel.classList.remove('active');
+        });
+
+        // Add active class to clicked button
+        const activeButton = document.querySelector(`[data-category="${categoryName}"]`);
+        if (activeButton) {
+            activeButton.classList.add('active');
+        }
+
+        // Show corresponding panel
+        const activePanel = document.getElementById(`${categoryName}-panel`);
+        if (activePanel) {
+            activePanel.classList.add('active');
+        }
+
+        // Add entrance animation to new cards
+        const newCards = activePanel?.querySelectorAll('.feature-card');
+        if (newCards) {
+            newCards.forEach((card, index) => {
+                card.style.animationDelay = `${index * 0.1}s`;
+                card.classList.remove('animate-in');
+                setTimeout(() => {
+                    card.classList.add('animate-in');
+                }, 10);
+            });
+        }
+
+        // Show notification
+        const categoryNames = {
+            'document': '文档处理',
+            'enhance': '文档增强',
+            'analysis': '文档分析',
+            'convert': '格式转换'
+        };
+        showNotification(`已切换到${categoryNames[categoryName]}类别`, 'info', 2000);
+    }
+
+    // Add entrance animations
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.feature-card');
+        cards.forEach((card, index) => {
+            card.style.animationDelay = `${index * 0.1}s`;
+            card.classList.add('animate-in');
+        });
+
+        // Add click handler for coming soon features
+        document.querySelectorAll('.coming-soon').forEach(card => {
+            card.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showNotification('该功能即将推出，敬请期待！', 'warning', 3000);
+            });
+        });
+
+        // Add keyboard navigation for categories
+        document.addEventListener('keydown', function(e) {
+            if (e.altKey) {
+                const categoryKeys = {
+                    '1': 'document',
+                    '2': 'enhance',
+                    '3': 'analysis',
+                    '4': 'convert'
+                };
+
+                if (categoryKeys[e.key]) {
+                    e.preventDefault();
+                    switchCategory(categoryKeys[e.key]);
+                }
+            }
+        });
+    });
 </script>
 {% endblock %}
