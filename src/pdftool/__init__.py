@@ -11,23 +11,30 @@ __version__ = "1.0.0"
 __author__ = "PDFTool Team"
 __email__ = "contact@pdftool.com"
 
-# Common Components
+# Common Components - New Architecture Only
 from .common.exceptions import PDFProcessingError, PDFToolError, PDFValidationError
-from .common.interfaces import BasePDFOperation, IPDFOperation
+from .common.interfaces.processor import (
+    IDataProcessor,
+    IOperationExecutor,
+    IResourceManager,
+    IServiceProvider,
+)
+from .common.services.operation_executor import PluggableOperationExecutor
+from .common.services.resource_manager import FileResourceManager
 
-# Core Components
-from .core.factory import PDFOperationFactory
-from .core.processor import PDFProcessor
-from .core.registry import ComponentRegistry
+# Services
+from .common.services.service_provider import ServiceProvider
 
 __all__ = [
-    # Core processing
-    "PDFProcessor",
-    "PDFOperationFactory",
-    "ComponentRegistry",
-    # Interfaces for extension
-    "IPDFOperation",
-    "BasePDFOperation",
+    # New Architecture Interfaces
+    "IDataProcessor",
+    "IOperationExecutor",
+    "IResourceManager",
+    "IServiceProvider",
+    # Services Implementation
+    "ServiceProvider",
+    "PluggableOperationExecutor",
+    "FileResourceManager",
     # Exceptions
     "PDFToolError",
     "PDFValidationError",

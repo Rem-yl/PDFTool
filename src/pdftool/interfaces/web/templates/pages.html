@@ -156,7 +156,7 @@
                 let filename = 'processed_pages.pdf';
                 if (contentDisposition) {
                     const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition);
-                    if (matches != null && matches[1]) {
+                    if (matches != null && matches[1] && typeof matches[1] === 'string') {
                         filename = matches[1].replace(/['"]/g, '');
                     }
                 }

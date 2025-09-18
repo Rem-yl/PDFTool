@@ -50,10 +50,23 @@ class IServiceRegistry(ABC):
 
 
 class BaseServiceHandler(IServiceHandler):
-    """Base class for service handlers with common functionality"""
+    """
+    解耦的服务处理器基类
+    使用依赖注入获取所需的服务
+    """
 
-    def __init__(self, pdf_processor=None):
-        self.pdf_processor = pdf_processor
+    def __init__(self, operation_executor=None, resource_manager=None):
+        """
+        初始化服务处理器
+
+        Args:
+            operation_executor: 操作执行器
+            resource_manager: 资源管理器
+        """
+        from ...common.interfaces.processor import IOperationExecutor, IResourceManager
+
+        self.operation_executor: IOperationExecutor = operation_executor
+        self.resource_manager: IResourceManager = resource_manager
 
     async def save_upload_file(self, upload_file: UploadFile, validate_pdf: bool = True) -> Path:
         """Save uploaded file to temporary directory"""
@@ -89,13 +102,16 @@ class BaseServiceHandler(IServiceHandler):
         # Choose download type based on number of files
         if len(result.output_files) > 1:
             # Multiple files, create ZIP archive
-            zip_file = self.pdf_processor.create_zip_archive(result.output_files)
+            if self.resource_manager is None:
+                raise HTTPException(status_code=500, detail="资源管理器未初始化")
+
+            zip_file = self.resource_manager.create_archive(result.output_files)
             cleanup_files = [zip_file] + result.output_files
             return FileResponse(
                 path=str(zip_file),
                 filename=f"{filename}.zip",
                 media_type="application/zip",
-                background=BackgroundTask(self.pdf_processor.cleanup_temp_files, cleanup_files),
+                background=BackgroundTask(self.resource_manager.cleanup_resources, cleanup_files),
             )
         else:
             # Single file
@@ -103,5 +119,5 @@ class BaseServiceHandler(IServiceHandler):
                 path=str(output_file),
                 filename=f"{filename}.pdf",
                 media_type="application/pdf",
-                background=BackgroundTask(self.pdf_processor.cleanup_temp_files, [output_file]),
+                background=BackgroundTask(self.resource_manager.cleanup_resources, [output_file]),
             )

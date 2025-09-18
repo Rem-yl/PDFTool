@@ -9,7 +9,6 @@ from fastapi import Depends, HTTPException, status
 
 from ...common.utils.logging import get_logger
 from ...config.settings import settings
-from ...core.processor import PDFProcessor
 from .service_manager import ServiceManager
 
 logger = get_logger("api.dependencies")
@@ -24,11 +23,6 @@ def get_service_manager() -> ServiceManager:
     if _service_manager is None:
         _service_manager = ServiceManager(temp_dir=settings.temp_dir)
     return _service_manager
-
-
-def get_pdf_processor() -> PDFProcessor:
-    """获取PDF处理器实例"""
-    return PDFProcessor(temp_dir=settings.temp_dir)
 
 
 def get_settings():

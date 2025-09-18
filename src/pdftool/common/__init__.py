@@ -14,7 +14,12 @@ from .exceptions import (
     PDFToolError,
     PDFValidationError,
 )
-from .interfaces import BasePDFOperation, IPDFOperation, IPDFOperationFactory
+from .interfaces.processor import (
+    IDataProcessor,
+    IOperationExecutor,
+    IResourceManager,
+    IServiceProvider,
+)
 from .models import (
     MergeOptions,
     OperationResult,
@@ -25,10 +30,11 @@ from .models import (
 )
 
 __all__ = [
-    # 接口
-    "IPDFOperation",
-    "BasePDFOperation",
-    "IPDFOperationFactory",
+    # 新架构接口
+    "IDataProcessor",
+    "IOperationExecutor",
+    "IResourceManager",
+    "IServiceProvider",
     # 模型
     "PDFInfo",
     "SplitOptions",
