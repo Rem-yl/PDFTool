@@ -54,7 +54,7 @@ class SplitServiceHandler(BaseServiceHandler):
             options = PageSelectionOptions(
                 mode=mode,
                 pages=request.pages,
-                filename_prefix=request.filename_prefix or Path(file.filename).stem,
+                filename_prefix=request.filename_prefix or Path(file.filename or "document").stem,
             )
 
             # Execute split operation

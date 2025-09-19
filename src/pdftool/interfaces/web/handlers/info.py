@@ -27,7 +27,9 @@ class InfoServiceHandler(BaseServiceHandler):
     def service_name(self) -> str:
         return "info"
 
-    async def handle(self, files: List[UploadFile]) -> OperationResult:
+    async def handle(
+        self, files: List[UploadFile], request=None, *args, **kwargs
+    ) -> OperationResult:
         """Handle PDF info request"""
         if len(files) != 1:
             raise HTTPException(status_code=400, detail="只能处理一个PDF文件")

@@ -103,7 +103,7 @@ class WatermarkOperation(BasePDFOperation):
             try:
                 if "watermark_pdf" in locals():
                     watermark_pdf.close()
-            except:
+            except Exception:
                 pass
 
     def _create_watermark_pdf(self, options: WatermarkOptions) -> io.BytesIO:
@@ -207,7 +207,7 @@ class WatermarkOperation(BasePDFOperation):
         element_height: float,
     ) -> tuple[float, float]:
         """Calculate watermark position coordinates"""
-        margin = 50  # Margin from edges
+        margin = 50.0  # Margin from edges
 
         # Calculate x coordinate
         if position in [

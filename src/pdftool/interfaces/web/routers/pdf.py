@@ -78,7 +78,7 @@ async def get_pdf_info_v2(
     info_handler = service_registry.get_handler("info")
 
     # 获取PDF信息
-    result = await info_handler.handle([file])
+    result = await info_handler.handle([file], request=None)
 
     # 从 OperationResult 中解析 PDFInfoResponse
     if result.success and result.details:
@@ -132,7 +132,7 @@ async def select_pages_v2(
         if page_list and len(page_list) == 1:
             filename = f"page_{page_list[0]}"
         else:
-            filename = f"selected_pages"
+            filename = "selected_pages"
     else:
         filename = "pdf_pages"
 

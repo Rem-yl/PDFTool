@@ -64,9 +64,12 @@ class SplitOperation(BasePDFOperation):
                         writer.add_page(reader.pages[page_num - 1])
 
                     if len(target_pages) == 1:
-                        filename = f"{options.filename_prefix or input_file.stem}_page_{target_pages[0]}.pdf"
+                        prefix = options.filename_prefix or input_file.stem
+                        filename = f"{prefix}_page_{target_pages[0]}.pdf"
                     else:
-                        filename = f"{options.filename_prefix or input_file.stem}_pages_{min(target_pages)}-{max(target_pages)}.pdf"
+                        prefix = options.filename_prefix or input_file.stem
+                        page_range = f"{min(target_pages)}-{max(target_pages)}"
+                        filename = f"{prefix}_pages_{page_range}.pdf"
 
                     output_file = output_dir / filename
                     with open(output_file, "wb") as out_f:

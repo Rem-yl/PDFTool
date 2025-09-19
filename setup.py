@@ -21,7 +21,9 @@ setup(
     version="1.0.0",
     author="PDFTool Team",
     author_email="contact@pdftool.com",
-    description="A comprehensive PDF manipulation tool with Web API interface and plugin architecture",
+    description=(
+        "A comprehensive PDF manipulation tool with Web API interface " "and plugin architecture"
+    ),
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Rem-yl/PDFTool",

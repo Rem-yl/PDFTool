@@ -72,7 +72,7 @@ async def get_status(settings=Depends(get_settings)):
     返回服务运行状态和配置信息
     """
     import os
-    import time
+    import time  # noqa: F401
 
     import psutil
 

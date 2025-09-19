@@ -3,7 +3,7 @@ API请求模型定义
 """
 
 from enum import Enum
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, validator
 
@@ -14,7 +14,7 @@ class PageSelectionModeEnum(str, Enum):
     ALL = "all"  # 全部页面（每页单独文件）
     PAGES = "pages"  # 指定页面列表（每页单独文件）
     SINGLE = "single"  # 将选中页面合并为单个文件
-    RANGE = "range"  #  指定页面范围
+    RANGE = "range"  # 指定页面范围
 
 
 class WatermarkTypeEnum(str, Enum):
@@ -55,7 +55,7 @@ class PDFPageSelectionRequest(BaseModel):
     filename_prefix: Optional[str] = Field(None, description="输出文件名前缀")
 
     @validator("pages")
-    def validate_pages(cls, v, values):
+    def validate_pages(cls, v: Optional[List[int]], values: Dict[str, Any]) -> Optional[List[int]]:
         mode = values.get("mode")
         if mode in [PageSelectionModeEnum.PAGES, PageSelectionModeEnum.SINGLE]:
             if not v:
@@ -76,7 +76,7 @@ class PDFExtractRequest(BaseModel):
     filename_prefix: Optional[str] = Field(None, description="输出文件名前缀")
 
     @validator("pages")
-    def validate_pages(cls, v):
+    def validate_pages(cls, v: List[int]) -> List[int]:
         if not v:
             raise ValueError("至少需要指定一个页面")
         if any(page < 1 for page in v):
@@ -108,14 +108,14 @@ class WatermarkRequest(BaseModel):
     specific_pages: Optional[str] = Field(None, description="指定页面(如: 1,3,5-8)")
 
     @validator("watermark_text")
-    def validate_text_watermark(cls, v, values):
+    def validate_text_watermark(cls, v: Optional[str], values: Dict[str, Any]) -> Optional[str]:
         if values.get("watermark_type") == WatermarkTypeEnum.TEXT and not v:
             raise ValueError("文本水印需要提供水印文本")
         return v
 
     @validator("font_color")
-    def validate_font_color(cls, v):
-        if v and not v.startswith("#") or len(v) != 7:
+    def validate_font_color(cls, v: Optional[str]) -> Optional[str]:
+        if v and (not v.startswith("#") or len(v) != 7):
             raise ValueError("字体颜色必须是7位十六进制格式 (#RRGGBB)")
         return v
 

@@ -16,7 +16,7 @@ class ServiceRegistry(IServiceRegistry):
     使用依赖注入而不是直接依赖具体的处理器类
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         初始化服务注册表
         """

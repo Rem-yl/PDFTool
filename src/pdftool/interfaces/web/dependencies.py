@@ -24,7 +24,7 @@ def get_service_registry() -> ServiceRegistry:
     return _service_registry
 
 
-def get_settings():
+def get_settings() -> object:
     """获取应用设置"""
     return settings
 
@@ -54,7 +54,7 @@ def validate_file_extension(filename: str | None) -> bool:
 
 
 def parse_page_list(pages: str) -> list[int]:
-    page_list = []
+    page_list: list[int] = []
     for part in pages.split(","):
         part = part.strip()
         if "-" in part:
