@@ -29,17 +29,16 @@ class SplitServiceHandler(BaseServiceHandler):
         return "split"
 
     async def handle(
-        self, files: List[UploadFile], request: PDFPageSelectionRequest
+        self, files: List[UploadFile], request: PDFPageSelectionRequest, *args, **kwargs
     ) -> OperationResult:
         """Handle PDF split request"""
         if len(files) != 1:
             raise HTTPException(status_code=400, detail="只能处理一个PDF文件")
 
         file = files[0]
-        temp_input = None
         try:
-            # Save uploaded file
-            temp_input = await self.save_upload_file(file)
+            # Save uploaded file using tracked method
+            temp_input = await self.save_upload_file_tracked(file)
 
             # Convert request mode
             if request.mode == PageSelectionModeEnum.ALL:
@@ -74,7 +73,4 @@ class SplitServiceHandler(BaseServiceHandler):
         except Exception as e:
             logger.error(f"PDF页面选择异常: {str(e)}")
             raise HTTPException(status_code=500, detail=f"页面选择时出错: {str(e)}")
-        finally:
-            # Cleanup temporary file
-            if temp_input and hasattr(self.split_operation, "cleanup_temp_files"):
-                self.split_operation.cleanup_temp_files([temp_input])
+        # 注意：不再有 finally 清理，所有文件将在下载完成后统一清理

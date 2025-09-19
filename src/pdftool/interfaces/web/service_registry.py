@@ -2,12 +2,12 @@
 Service registry for API handlers - Decoupled architecture
 """
 
-from typing import Dict, Type
+from typing import Any, Dict, Type
 
 from ...common.utils.logging import get_logger
-from .interfaces import IServiceHandler, IServiceRegistry
+from .interfaces import BaseServiceHandler, IServiceRegistry
 
-logger = get_logger("service_registry")
+logger = get_logger(__name__)
 
 
 class ServiceRegistry(IServiceRegistry):
@@ -20,15 +20,14 @@ class ServiceRegistry(IServiceRegistry):
         """
         初始化服务注册表
         """
-        self._handlers: Dict[str, Type[IServiceHandler]] = {}
+        self._handlers: Dict[str, Type[BaseServiceHandler]] = {}
         self._handler_dependencies: Dict[str, Dict] = {}
-        self._register_default_handlers()
+        self.register_service_handlers()
 
     def register_handler(
         self,
         service_name: str,
-        handler_class: Type[IServiceHandler],
-        dependencies: Dict = None,
+        handler_class: Type[BaseServiceHandler],
     ) -> None:
         """
         注册服务处理器
@@ -38,11 +37,13 @@ class ServiceRegistry(IServiceRegistry):
             handler_class: 处理器类
             dependencies: 依赖项映射
         """
-        self._handlers[service_name] = handler_class
-        self._handler_dependencies[service_name] = dependencies or {}
-        logger.info(f"Service: {service_name} has been registered.")
+        if service_name in self._handlers:
+            logger.warning(f"Service {service_name} already registered.")
+        else:
+            self._handlers[service_name] = handler_class
+            logger.info(f"Service: {service_name} has been registered.")
 
-    def get_handler(self, service_name: str) -> IServiceHandler:
+    def get_handler(self, service_name: str) -> BaseServiceHandler:
         """
         获取服务处理器实例
 
@@ -81,13 +82,12 @@ class ServiceRegistry(IServiceRegistry):
             if service_name in self._handler_dependencies:
                 del self._handler_dependencies[service_name]
 
-    def get_service_info(self, service_name: str) -> Dict[str, any]:
+    def get_service_info(self, service_name: str) -> Dict[str, Any]:
         """获取服务信息"""
         if service_name not in self._handlers:
             raise ValueError(f"Unknown service: {service_name}")
 
         handler_class = self._handlers[service_name]
-        dependencies = self._handler_dependencies.get(service_name, {})
 
         return {
             "name": service_name,
@@ -96,20 +96,25 @@ class ServiceRegistry(IServiceRegistry):
             "doc": handler_class.__doc__ or "No documentation",
         }
 
-    def _register_default_handlers(self) -> None:
+    def register_service_handlers(self) -> None:
         """注册默认的服务处理器"""
-        try:
-            from .handlers.info import InfoServiceHandler
-            from .handlers.merge import MergeServiceHandler
-            from .handlers.split import SplitServiceHandler
-            from .handlers.watermark import WatermarkServiceHandler
+        # 定义服务列表，包含服务名和对应的处理器类
+        services = [
+            ("merge", "MergeServiceHandler"),
+            ("split", "SplitServiceHandler"),
+            ("info", "InfoServiceHandler"),
+            ("watermark", "WatermarkServiceHandler"),
+        ]
 
-            # Register handlers without complex dependencies for now
-            self.register_handler("merge", MergeServiceHandler)
-            self.register_handler("split", SplitServiceHandler)
-            self.register_handler("info", InfoServiceHandler)
-            self.register_handler("watermark", WatermarkServiceHandler)
+        for service_name, handler_class_name in services:
+            try:
+                # 使用绝对导入路径
+                module_path = f"pdftool.interfaces.web.handlers.{service_name}"
+                module = __import__(module_path, fromlist=[handler_class_name])
+                handler_class = getattr(module, handler_class_name)
 
-        except ImportError as e:
-            logger.warning(f"Failed to import some service handlers: {e}")
-            pass
+                # 注册处理器
+                self.register_handler(service_name, handler_class)
+
+            except (ImportError, AttributeError) as e:
+                logger.warning(f"Failed to register service {service_name}: {e}")

@@ -9,7 +9,11 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
-from ..dependencies import get_service_manager, parse_page_list, validate_file_extension
+from ..dependencies import (
+    get_service_registry,
+    parse_page_list,
+    validate_file_extension,
+)
 from ..schemas.requests import (
     PageSelectionModeEnum,
     PDFMergeRequest,
@@ -19,7 +23,7 @@ from ..schemas.requests import (
     WatermarkTypeEnum,
 )
 from ..schemas.responses import PDFInfoResponse, SuccessResponse
-from ..service_manager import ServiceManager
+from ..service_registry import ServiceRegistry
 
 router = APIRouter(prefix="/api/v1/pdf", tags=["PDF操作"])
 
@@ -34,7 +38,7 @@ async def merge_pdfs_v2(
     files: List[UploadFile] = File(..., description="要合并的PDF文件列表"),
     preserve_bookmarks: bool = Form(True, description="是否保留书签"),
     preserve_metadata: bool = Form(True, description="是否保留元数据"),
-    service_manager: ServiceManager = Depends(get_service_manager),
+    service_registry: ServiceRegistry = Depends(get_service_registry),
 ):
     """合并多个PDF文件 - 使用新架构"""
     # 验证文件
@@ -47,7 +51,7 @@ async def merge_pdfs_v2(
     )
 
     # 获取合并服务处理器
-    merge_handler = service_manager.get_service_handler("merge")
+    merge_handler = service_registry.get_handler("merge")
 
     # 执行合并
     result = await merge_handler.handle(files, request)
@@ -64,17 +68,26 @@ async def merge_pdfs_v2(
 )
 async def get_pdf_info_v2(
     file: UploadFile = File(..., description="要分析的PDF文件"),
-    service_manager: ServiceManager = Depends(get_service_manager),
+    service_registry: ServiceRegistry = Depends(get_service_registry),
 ):
     """获取PDF文件详细信息 - 使用新架构"""
     # 验证文件
     validate_file_extension(file.filename)
 
     # 获取信息服务处理器
-    info_handler = service_manager.get_service_handler("info")
+    info_handler = service_registry.get_handler("info")
 
     # 获取PDF信息
-    return await info_handler.handle([file])
+    result = await info_handler.handle([file])
+
+    # 从 OperationResult 中解析 PDFInfoResponse
+    if result.success and result.details:
+        import json
+
+        info_data = json.loads(result.details)
+        return PDFInfoResponse(**info_data)
+
+    raise HTTPException(status_code=500, detail=result.message)
 
 
 @router.post(
@@ -88,7 +101,7 @@ async def select_pages_v2(
     mode: PageSelectionModeEnum = Form(..., description="页面选择模式"),
     pages: Optional[str] = Form(None, description="指定页面列表，格式：'1,3,5' 或 '1-5'"),
     filename_prefix: Optional[str] = Form(None, description="输出文件名前缀"),
-    service_manager: ServiceManager = Depends(get_service_manager),
+    service_registry: ServiceRegistry = Depends(get_service_registry),
 ):
     """统一的PDF页面选择和处理 - 使用新架构"""
     validate_file_extension(file.filename)
@@ -107,7 +120,7 @@ async def select_pages_v2(
     request = PDFPageSelectionRequest(mode=mode, pages=page_list, filename_prefix=filename_prefix)
 
     # 获取分割服务处理器
-    split_handler = service_manager.get_service_handler("split")
+    split_handler = service_registry.get_handler("split")
 
     # 执行页面选择
     result = await split_handler.handle([file], request)
@@ -144,7 +157,7 @@ async def add_watermark_v2(
     opacity: float = Form(..., description="透明度(0.1-1.0)"),
     page_selection: PageSelectionModeEnum = Form(..., description="页面选择模式"),
     specific_pages: Optional[str] = Form(None, description="指定页面"),
-    service_manager: ServiceManager = Depends(get_service_manager),
+    service_registry: ServiceRegistry = Depends(get_service_registry),
 ):
     """添加水印到PDF文件 - 使用新架构"""
     # 验证文件
@@ -177,13 +190,13 @@ async def add_watermark_v2(
         raise HTTPException(status_code=400, detail=f"参数验证失败: {str(e)}")
 
     # 获取水印服务处理器
-    watermark_handler = service_manager.get_service_handler("watermark")
+    watermark_handler = service_registry.get_handler("watermark")
 
     # 执行水印添加
     result = await watermark_handler.handle([file], request, watermark_image)
 
     # 返回下载响应
-    filename = f"watermarked_{Path(file.filename).stem}"
+    filename = f"watermarked_{Path(file.filename or 'document').stem}"
     return watermark_handler.create_download_response(result, filename)
 
 
@@ -193,13 +206,12 @@ async def add_watermark_v2(
     summary="获取可用服务列表",
     description="返回所有已注册的服务列表",
 )
-async def list_services(service_manager: ServiceManager = Depends(get_service_manager)):
+async def list_services(service_registry: ServiceRegistry = Depends(get_service_registry)):
     """获取可用服务列表 - 展示架构的扩展能力"""
     return SuccessResponse(
         message="可用服务列表",
         data={
-            "services": service_manager.list_available_services(),
-            "operations": service_manager.list_available_operations(),
+            "services": service_registry.list_services(),
             "architecture": "Extensible Service Registry Pattern",
         },
     )

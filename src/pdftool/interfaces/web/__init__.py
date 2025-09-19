@@ -6,10 +6,10 @@ Web接口模块
 
 from .application import app
 from .main import main
-from .service_manager import ServiceManager
+from .service_registry import ServiceRegistry
 
 __all__ = [
     "app",
     "main",
-    "ServiceManager",
+    "ServiceRegistry",
 ]

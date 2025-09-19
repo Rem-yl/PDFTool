@@ -3,26 +3,25 @@ FastAPI依赖注入
 """
 
 from pathlib import Path
-from typing import Generator
 
-from fastapi import Depends, HTTPException, status
+from fastapi import HTTPException, status
 
 from ...common.utils.logging import get_logger
 from ...config.settings import settings
-from .service_manager import ServiceManager
+from .service_registry import ServiceRegistry
 
 logger = get_logger("api.dependencies")
 
-# Global service manager instance
-_service_manager = None
+# Global service registry instance
+_service_registry = None
 
 
-def get_service_manager() -> ServiceManager:
-    """获取服务管理器实例"""
-    global _service_manager
-    if _service_manager is None:
-        _service_manager = ServiceManager(temp_dir=settings.temp_dir)
-    return _service_manager
+def get_service_registry() -> ServiceRegistry:
+    """获取服务注册表实例"""
+    global _service_registry
+    if _service_registry is None:
+        _service_registry = ServiceRegistry()
+    return _service_registry
 
 
 def get_settings():

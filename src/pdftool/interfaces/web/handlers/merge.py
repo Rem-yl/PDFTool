@@ -2,7 +2,6 @@
 Merge service handler
 """
 
-from pathlib import Path
 from typing import List
 
 from fastapi import HTTPException, UploadFile
@@ -33,11 +32,11 @@ class MergeServiceHandler(BaseServiceHandler):
         if len(files) < 2:
             raise HTTPException(status_code=400, detail="需要至少2个PDF文件")
 
-        temp_files = []
         try:
-            # Save all uploaded files
+            # Save all uploaded files using tracked method
+            temp_files = []
             for file in files:
-                temp_path = await self.save_upload_file(file)
+                temp_path = await self.save_upload_file_tracked(file)
                 temp_files.append(temp_path)
 
             # Set merge options
@@ -62,7 +61,3 @@ class MergeServiceHandler(BaseServiceHandler):
         except Exception as e:
             logger.error(f"PDF合并异常: {str(e)}")
             raise HTTPException(status_code=500, detail=f"合并PDF时出错: {str(e)}")
-        finally:
-            # Cleanup temporary files
-            if hasattr(self.merge_operation, "cleanup_temp_files"):
-                self.merge_operation.cleanup_temp_files(temp_files)

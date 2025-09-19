@@ -44,15 +44,15 @@ class WatermarkServiceHandler(BaseServiceHandler):
             raise HTTPException(status_code=400, detail="只能处理一个PDF文件")
 
         file = files[0]
-        temp_input = None
-        temp_watermark_image = None
-        try:
-            # Save uploaded PDF file
-            temp_input = await self.save_upload_file(file)
 
-            # Handle watermark image (if image watermark)
+        try:
+            # 保存输入文件，使用跟踪机制
+            temp_input = await self.save_upload_file_tracked(file)
+
+            # 保存水印图片文件（如果需要）
+            temp_watermark_image = None
             if request.watermark_type.value == "image" and watermark_file:
-                temp_watermark_image = await self.save_upload_file(
+                temp_watermark_image = await self.save_upload_file_tracked(
                     watermark_file, validate_pdf=False
                 )
 
@@ -110,12 +110,3 @@ class WatermarkServiceHandler(BaseServiceHandler):
         except Exception as e:
             logger.error(f"PDF水印添加异常: {str(e)}")
             raise HTTPException(status_code=500, detail=f"添加水印时出错: {str(e)}")
-        finally:
-            # Cleanup temporary files
-            temp_files = []
-            if temp_input:
-                temp_files.append(temp_input)
-            if temp_watermark_image:
-                temp_files.append(temp_watermark_image)
-            if temp_files and hasattr(self.watermark_operation, "cleanup_temp_files"):
-                self.watermark_operation.cleanup_temp_files(temp_files)
