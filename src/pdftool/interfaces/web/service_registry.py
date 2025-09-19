@@ -104,6 +104,7 @@ class ServiceRegistry(IServiceRegistry):
             ("split", "SplitServiceHandler"),
             ("info", "InfoServiceHandler"),
             ("watermark", "WatermarkServiceHandler"),
+            ("password", "PasswordProtectionServiceHandler"),
         ]
 
         for service_name, handler_class_name in services:

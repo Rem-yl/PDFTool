@@ -77,3 +77,16 @@ async def add_watermark_page(request: Request, settings=Depends(get_settings)):
         "watermark.html",
         {"request": request, "app_name": settings.app_name, "show_back_button": True},
     )
+
+
+@router.get("/password", response_class=HTMLResponse, summary="PDF密码保护页面")
+async def password_protection_page(request: Request, settings=Depends(get_settings)):
+    """
+    PDF密码保护功能页面
+
+    提供密码设置和权限控制选项
+    """
+    return templates.TemplateResponse(
+        "password.html",
+        {"request": request, "app_name": settings.app_name, "show_back_button": True},
+    )

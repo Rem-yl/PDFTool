@@ -16,6 +16,7 @@ from ..dependencies import (
 )
 from ..schemas.requests import (
     PageSelectionModeEnum,
+    PasswordProtectionRequest,
     PDFMergeRequest,
     PDFPageSelectionRequest,
     WatermarkPositionEnum,
@@ -198,6 +199,58 @@ async def add_watermark_v2(
     # 返回下载响应
     filename = f"watermarked_{Path(file.filename or 'document').stem}"
     return watermark_handler.create_download_response(result, filename)
+
+
+@router.post(
+    "/password",
+    response_class=FileResponse,
+    summary="PDF密码保护",
+    description="为PDF文件设置密码保护和权限控制",
+)
+async def protect_pdf_with_password(
+    file: UploadFile = File(..., description="要保护的PDF文件"),
+    user_password: str = Form(..., description="用户密码"),
+    owner_password: Optional[str] = Form(None, description="所有者密码"),
+    allow_printing: bool = Form(True, description="允许打印"),
+    allow_copying: bool = Form(True, description="允许复制"),
+    allow_modification: bool = Form(True, description="允许修改"),
+    allow_annotation: bool = Form(True, description="允许注释"),
+    allow_filling_forms: bool = Form(True, description="允许填写表单"),
+    allow_screen_readers: bool = Form(True, description="允许屏幕阅读器访问"),
+    allow_assembly: bool = Form(True, description="允许组装文档"),
+    allow_degraded_printing: bool = Form(True, description="允许低质量打印"),
+    service_registry: ServiceRegistry = Depends(get_service_registry),
+):
+    """为PDF文件添加密码保护"""
+    # 验证文件
+    validate_file_extension(file.filename)
+
+    # 创建请求对象
+    try:
+        request = PasswordProtectionRequest(
+            user_password=user_password,
+            owner_password=owner_password,
+            allow_printing=allow_printing,
+            allow_copying=allow_copying,
+            allow_modification=allow_modification,
+            allow_annotation=allow_annotation,
+            allow_filling_forms=allow_filling_forms,
+            allow_screen_readers=allow_screen_readers,
+            allow_assembly=allow_assembly,
+            allow_degraded_printing=allow_degraded_printing,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"参数验证失败: {str(e)}")
+
+    # 获取密码保护服务处理器
+    password_handler = service_registry.get_handler("password")
+
+    # 执行密码保护
+    result = await password_handler.handle([file], request)
+
+    # 返回下载响应
+    filename = f"protected_{Path(file.filename or 'document').stem}"
+    return password_handler.create_download_response(result, filename)
 
 
 @router.get(

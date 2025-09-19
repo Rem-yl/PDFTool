@@ -120,6 +120,37 @@ class WatermarkRequest(BaseModel):
         return v
 
 
+class PasswordProtectionRequest(BaseModel):
+    """密码保护请求模型"""
+
+    user_password: str = Field(..., min_length=4, max_length=50, description="用户密码")
+    owner_password: Optional[str] = Field(
+        None, min_length=4, max_length=50, description="所有者密码"
+    )
+
+    # 权限设置
+    allow_printing: bool = Field(True, description="允许打印")
+    allow_copying: bool = Field(True, description="允许复制")
+    allow_modification: bool = Field(True, description="允许修改")
+    allow_annotation: bool = Field(True, description="允许注释")
+    allow_filling_forms: bool = Field(True, description="允许填写表单")
+    allow_screen_readers: bool = Field(True, description="允许屏幕阅读器访问")
+    allow_assembly: bool = Field(True, description="允许组装文档")
+    allow_degraded_printing: bool = Field(True, description="允许低质量打印")
+
+    @validator("user_password")
+    def validate_user_password(cls, v: str) -> str:
+        if not v or len(v.strip()) < 4:
+            raise ValueError("用户密码长度至少为4位")
+        return v.strip()
+
+    @validator("owner_password")
+    def validate_owner_password(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v.strip()) < 4:
+            raise ValueError("所有者密码长度至少为4位")
+        return v.strip() if v else None
+
+
 class UploadConfig(BaseModel):
     """上传配置模型"""
 

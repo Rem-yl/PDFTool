@@ -124,6 +124,23 @@ class WatermarkOptions:
 
 
 @dataclass
+class PasswordProtectionOptions:
+    """密码保护选项"""
+
+    user_password: str  # 用户密码（用于打开文档）
+    owner_password: Optional[str] = None  # 所有者密码（用于编辑权限）
+    allow_printing: bool = True  # 允许打印
+    allow_copying: bool = True  # 允许复制
+    allow_modification: bool = True  # 允许修改
+    allow_annotation: bool = True  # 允许注释
+    allow_filling_forms: bool = True  # 允许填写表单
+    allow_screen_readers: bool = True  # 允许屏幕阅读器访问
+    allow_assembly: bool = True  # 允许组装（页面插入、删除等）
+    allow_degraded_printing: bool = True  # 允许低质量打印
+    output_file: Optional[Path] = None
+
+
+@dataclass
 class OperationResult:
     """Result of a PDF operation"""
 
