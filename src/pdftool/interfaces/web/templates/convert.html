@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}PDF格式转换 - PDFTool{% endblock %}
+
+{% block header_icon %}🔄{% endblock %}
+{% block header_title %}PDF格式转换{% endblock %}
+{% block header_description %}将PDF文档转换为其他格式，支持TXT、Markdown、EPUB等{% endblock %}
+
+{% set show_back_button = true %}
+
+{% block content %}
+<div class="upload-area" id="convertDropZone">
+    <h3>选择要转换的PDF文件</h3>
+    <p>支持转换为TXT、Markdown、EPUB等格式</p>
+    <input type="file" id="pdfFile" accept=".pdf">
+
+    <div class="options-group">
+        <h4>转换格式：</h4>
+        <label>
+            <input type="radio" name="format" value="txt" checked> 纯文本 (TXT)
+        </label>
+        <label>
+            <input type="radio" name="format" value="markdown"> Markdown (MD)
+        </label>
+        <label>
+            <input type="radio" name="format" value="epub"> 电子书 (EPUB)
+        </label>
+    </div>
+
+    <div class="options-group">
+        <h4>转换选项：</h4>
+        <label>
+            <input type="checkbox" id="preserveImages" checked> 保留图片信息
+        </label>
+        <label>
+            <input type="checkbox" id="preserveFormatting" checked> 保持格式
+        </label>
+        <label>
+            <input type="checkbox" id="useOCR" checked> 智能检测扫描版PDF（自动分析并提供处理建议）
+        </label>
+    </div>
+
+    <button onclick="convertPDF()">开始转换</button>
+</div>
+
+<div class="progress-bar" id="convertProgress">
+    <div class="progress-fill"></div>
+</div>
+
+<div id="convertResult"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', path='/js/upload.js') }}"></script>
+<script>
+    // 设置拖放区域
+    setupDropZone('convertDropZone', 'pdfFile');
+
+    async function convertPDF() {
+        const pdfFile = document.getElementById('pdfFile').files[0];
+        if (!pdfFile) {
+            showResult('convertResult', '请选择PDF文件', false);
+            return;
+        }
+
+        // 验证文件类型
+        if (pdfFile.type !== 'application/pdf') {
+            showResult('convertResult', '请选择PDF文件', false);
+            return;
+        }
+
+        // 验证文件大小 (100MB限制)
+        const maxSize = 100 * 1024 * 1024;
+        if (pdfFile.size > maxSize) {
+            showResult('convertResult', '文件大小不能超过100MB', false);
+            return;
+        }
+
+        const format = document.querySelector('input[name="format"]:checked').value;
+        const preserveImages = document.getElementById('preserveImages').checked;
+        const preserveFormatting = document.getElementById('preserveFormatting').checked;
+        const useOCR = document.getElementById('useOCR').checked;
+
+        const formData = new FormData();
+        formData.append('file', pdfFile);
+        formData.append('format', format);
+        formData.append('preserve_images', preserveImages);
+        formData.append('preserve_formatting', preserveFormatting);
+        formData.append('use_ocr', useOCR);
+
+        showProgress('convertProgress');
+
+        try {
+            // 使用统一的转换端点，会自动检测扫描版PDF并提供分析
+            const endpoint = '/api/v1/pdf/convert';
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                body: formData
+            });
+
+            hideProgress('convertProgress');
+
+            if (response.ok) {
+                const blob = await response.blob();
+
+                // 确定文件扩展名
+                let extension;
+                switch(format) {
+                    case 'txt':
+                        extension = 'txt';
+                        break;
+                    case 'markdown':
+                        extension = 'md';
+                        break;
+                    case 'epub':
+                        extension = 'html'; // 我们当前的实现输出HTML
+                        break;
+                    default:
+                        extension = format;
+                }
+
+                const filename = `converted_${pdfFile.name.replace('.pdf', '')}.${extension}`;
+                downloadFile(blob, filename);
+
+                const formatNames = {
+                    'txt': '纯文本',
+                    'markdown': 'Markdown',
+                    'epub': 'EPUB格式'
+                };
+
+                showResult('convertResult', `✅ 转换成功！已转换为${formatNames[format]}格式`, true);
+            } else {
+                const error = await response.json();
+                showResult('convertResult', `❌ 转换失败: ${error.detail || error.message}`, false);
+            }
+        } catch (error) {
+            hideProgress('convertProgress');
+            showResult('convertResult', `❌ 请求失败: ${error.message}`, false);
+        }
+    }
+
+    // 格式说明显示
+    document.querySelectorAll('input[name="format"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const descriptions = {
+                'txt': '提取PDF中的文本内容，保存为纯文本格式',
+                'markdown': '转换为Markdown格式，保持基本的文档结构',
+                'epub': '转换为标准电子书格式，支持章节结构'
+            };
+
+            // 移除之前的描述
+            const existingDesc = document.querySelector('.format-description');
+            if (existingDesc) {
+                existingDesc.remove();
+            }
+
+            // 添加新描述
+            const desc = document.createElement('div');
+            desc.className = 'help-text format-description';
+            desc.textContent = descriptions[this.value];
+            this.parentNode.parentNode.appendChild(desc);
+        });
+    });
+
+    // 初始显示TXT格式描述
+    document.addEventListener('DOMContentLoaded', function() {
+        const txtRadio = document.querySelector('input[value="txt"]');
+        if (txtRadio) {
+            txtRadio.dispatchEvent(new Event('change'));
+        }
+    });
+</script>
+{% endblock %}

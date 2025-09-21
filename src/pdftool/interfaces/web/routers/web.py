@@ -90,3 +90,16 @@ async def password_protection_page(request: Request, settings=Depends(get_settin
         "password.html",
         {"request": request, "app_name": settings.app_name, "show_back_button": True},
     )
+
+
+@router.get("/convert", response_class=HTMLResponse, summary="PDF格式转换页面")
+async def convert_page(request: Request, settings=Depends(get_settings)):
+    """
+    PDF格式转换功能页面
+
+    支持将PDF转换为TXT、Markdown、EPUB等格式
+    """
+    return templates.TemplateResponse(
+        "convert.html",
+        {"request": request, "app_name": settings.app_name, "show_back_button": True},
+    )

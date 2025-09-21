@@ -154,9 +154,27 @@ class BaseServiceHandler(IServiceHandler):
         # 添加输出文件到清理列表
         all_cleanup_files.extend(result.output_files)
 
+        # Detect file type from extension
+        file_ext = output_file.suffix.lower()
+        if file_ext == '.txt':
+            media_type = "text/plain"
+            download_filename = f"{filename}.txt"
+        elif file_ext == '.md':
+            media_type = "text/markdown"
+            download_filename = f"{filename}.md"
+        elif file_ext == '.html':
+            media_type = "text/html"
+            download_filename = f"{filename}.html"
+        elif file_ext == '.epub':
+            media_type = "application/epub+zip"
+            download_filename = f"{filename}.epub"
+        else:
+            media_type = "application/pdf"
+            download_filename = f"{filename}.pdf"
+
         return FileResponse(
             path=str(output_file),
-            filename=f"{filename}.pdf",
-            media_type="application/pdf",
+            filename=download_filename,
+            media_type=media_type,
             background=BackgroundTask(self._cleanup_files, all_cleanup_files),
         )

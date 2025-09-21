@@ -38,6 +38,14 @@ class WatermarkPosition(Enum):
     BOTTOM_RIGHT = 9
 
 
+class ConversionFormat(Enum):
+    """PDF转换格式"""
+
+    EPUB = "epub"
+    TXT = "txt"
+    MARKDOWN = "markdown"
+
+
 # 保持向后兼容
 SplitMode = PageSelectionMode
 
@@ -138,6 +146,17 @@ class PasswordProtectionOptions:
     allow_assembly: bool = True  # 允许组装（页面插入、删除等）
     allow_degraded_printing: bool = True  # 允许低质量打印
     output_file: Optional[Path] = None
+
+
+@dataclass
+class ConversionOptions:
+    """PDF转换选项"""
+
+    format: ConversionFormat
+    output_file: Optional[Path] = None
+    preserve_images: bool = True
+    preserve_formatting: bool = True
+    use_ocr: bool = True  # Enable OCR for scanned PDFs
 
 
 @dataclass

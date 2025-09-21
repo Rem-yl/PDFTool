@@ -98,19 +98,21 @@ class ServiceRegistry(IServiceRegistry):
 
     def register_service_handlers(self) -> None:
         """注册默认的服务处理器"""
-        # 定义服务列表，包含服务名和对应的处理器类
+        # 定义服务列表，包含服务名、模块名和对应的处理器类
         services = [
-            ("merge", "MergeServiceHandler"),
-            ("split", "SplitServiceHandler"),
-            ("info", "InfoServiceHandler"),
-            ("watermark", "WatermarkServiceHandler"),
-            ("password", "PasswordProtectionServiceHandler"),
+            ("merge", "merge", "MergeServiceHandler"),
+            ("split", "split", "SplitServiceHandler"),
+            ("info", "info", "InfoServiceHandler"),
+            ("watermark", "watermark", "WatermarkServiceHandler"),
+            ("password", "password", "PasswordProtectionServiceHandler"),
+            ("conversion", "conversion", "ConversionServiceHandler"),
+            ("conversion_ocr", "conversion_ocr", "ConversionOCRServiceHandler"),
         ]
 
-        for service_name, handler_class_name in services:
+        for service_name, module_name, handler_class_name in services:
             try:
                 # 使用绝对导入路径
-                module_path = f"pdftool.interfaces.web.handlers.{service_name}"
+                module_path = f"pdftool.interfaces.web.handlers.{module_name}"
                 module = __import__(module_path, fromlist=[handler_class_name])
                 handler_class = getattr(module, handler_class_name)
 

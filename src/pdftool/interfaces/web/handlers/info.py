@@ -9,7 +9,7 @@ from fastapi import HTTPException, UploadFile
 from ....common.exceptions import PDFToolError
 from ....common.models import OperationResult
 from ....common.utils.logging import get_logger
-from ....domains.document.operations import InfoOperation
+from ....domains.document.operations.info import InfoOperation
 from ..interfaces import BaseServiceHandler
 from ..schemas.responses import PDFInfoResponse
 

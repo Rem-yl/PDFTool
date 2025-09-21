@@ -9,7 +9,7 @@ from fastapi import HTTPException, UploadFile
 from ....common.exceptions import PDFToolError
 from ....common.models import MergeOptions, OperationResult
 from ....common.utils.logging import get_logger
-from ....domains.document.operations import MergeOperation
+from ....domains.document.operations.merge import MergeOperation
 from ..interfaces import BaseServiceHandler
 from ..schemas.requests import PDFMergeRequest
 

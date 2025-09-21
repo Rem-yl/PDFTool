@@ -10,7 +10,7 @@ from fastapi import HTTPException, UploadFile
 from ....common.exceptions import PDFToolError
 from ....common.models import OperationResult, PageSelectionMode, PageSelectionOptions
 from ....common.utils.logging import get_logger
-from ....domains.document.operations import SplitOperation
+from ....domains.document.operations.split import SplitOperation
 from ..interfaces import BaseServiceHandler
 from ..schemas.requests import PageSelectionModeEnum, PDFPageSelectionRequest
 
