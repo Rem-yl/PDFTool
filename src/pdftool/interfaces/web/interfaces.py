@@ -156,18 +156,21 @@ class BaseServiceHandler(IServiceHandler):
 
         # Detect file type from extension
         file_ext = output_file.suffix.lower()
-        if file_ext == '.txt':
+        if file_ext == ".txt":
             media_type = "text/plain"
             download_filename = f"{filename}.txt"
-        elif file_ext == '.md':
+        elif file_ext == ".md":
             media_type = "text/markdown"
             download_filename = f"{filename}.md"
-        elif file_ext == '.html':
+        elif file_ext == ".html":
             media_type = "text/html"
             download_filename = f"{filename}.html"
-        elif file_ext == '.epub':
+        elif file_ext == ".epub":
             media_type = "application/epub+zip"
             download_filename = f"{filename}.epub"
+        elif file_ext == ".zip":
+            media_type = "application/zip"
+            download_filename = f"{filename}.zip"
         else:
             media_type = "application/pdf"
             download_filename = f"{filename}.pdf"

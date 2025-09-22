@@ -284,9 +284,10 @@ async def convert_pdf(
 
     # 执行OCR增强转换
     result = await conversion_handler.handle([file], request)
+    output_file = result.output_files[0]
 
     # 返回下载响应
-    filename = f"converted_{Path(file.filename or 'document').stem}"
+    filename = f"converted_{output_file.stem}"
     return conversion_handler.create_download_response(result, filename)
 
 

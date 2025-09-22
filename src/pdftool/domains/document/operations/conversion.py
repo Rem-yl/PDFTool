@@ -5,6 +5,8 @@ PDF conversion operations using PaddleOCR exclusively
 import logging
 from pathlib import Path
 
+import paddle
+
 from ....common.exceptions import PDFProcessingError
 from ....common.interfaces import BasePDFOperation
 from ....common.models import ConversionFormat, ConversionOptions, OperationResult
@@ -58,10 +60,11 @@ class ConversionOperation(BasePDFOperation):
         import zipfile
 
         output_file = options.output_file or self.create_temp_file(".zip")
+        device = paddle.device.get_device()
 
         try:
             # 初始化PaddleOCR pipeline
-            pipeline = PPStructureV3()
+            pipeline = PPStructureV3(device=device)
             logger.info(f"Start using PaddleOCR to process file: {input_file}")
 
             # 使用PaddleOCR处理PDF
