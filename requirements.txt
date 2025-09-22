@@ -14,6 +14,6 @@ ebooklib>=0.18
 markdownify>=0.11.6
 pdfplumber>=0.9.0
 
-# OCR dependencies for scanned PDFs
-pytesseract>=0.3.10
-pdf2image>=1.16.0
+# OCR dependencies for scanned PDFs - PaddleOCR
+paddlepaddle>=2.5.0
+paddleocr>=2.7.0

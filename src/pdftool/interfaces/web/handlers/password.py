@@ -21,7 +21,7 @@ class PasswordProtectionServiceHandler(BaseServiceHandler):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.password_operation = PasswordProtectionOperation()
+        self.operation = PasswordProtectionOperation()
 
     @property
     def service_name(self) -> str:
@@ -54,7 +54,7 @@ class PasswordProtectionServiceHandler(BaseServiceHandler):
             )
 
             # Execute password protection operation
-            result = self.password_operation.execute(temp_input, options)
+            result = self.operation.execute(temp_input, options)
 
             logger.info(f"密码保护操作成功: {file.filename}")
             return result

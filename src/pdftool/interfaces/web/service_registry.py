@@ -106,7 +106,6 @@ class ServiceRegistry(IServiceRegistry):
             ("watermark", "watermark", "WatermarkServiceHandler"),
             ("password", "password", "PasswordProtectionServiceHandler"),
             ("conversion", "conversion", "ConversionServiceHandler"),
-            ("conversion_ocr", "conversion_ocr", "ConversionOCRServiceHandler"),
         ]
 
         for service_name, module_name, handler_class_name in services:

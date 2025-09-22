@@ -4,14 +4,14 @@
 
 {% block header_icon %}🔄{% endblock %}
 {% block header_title %}PDF格式转换{% endblock %}
-{% block header_description %}将PDF文档转换为其他格式，支持TXT、Markdown、EPUB等{% endblock %}
+{% block header_description %}将PDF文档转换为其他格式，支持TXT、Markdown、EPUB等，自动支持OCR处理扫描版PDF{% endblock %}
 
 {% set show_back_button = true %}
 
 {% block content %}
 <div class="upload-area" id="convertDropZone">
     <h3>选择要转换的PDF文件</h3>
-    <p>支持转换为TXT、Markdown、EPUB等格式</p>
+    <p>支持转换为TXT、Markdown、EPUB等格式，自动OCR处理扫描版PDF</p>
     <input type="file" id="pdfFile" accept=".pdf">
 
     <div class="options-group">
@@ -24,19 +24,6 @@
         </label>
         <label>
             <input type="radio" name="format" value="epub"> 电子书 (EPUB)
-        </label>
-    </div>
-
-    <div class="options-group">
-        <h4>转换选项：</h4>
-        <label>
-            <input type="checkbox" id="preserveImages" checked> 保留图片信息
-        </label>
-        <label>
-            <input type="checkbox" id="preserveFormatting" checked> 保持格式
-        </label>
-        <label>
-            <input type="checkbox" id="useOCR" checked> 智能检测扫描版PDF（自动分析并提供处理建议）
         </label>
     </div>
 
@@ -77,21 +64,16 @@
         }
 
         const format = document.querySelector('input[name="format"]:checked').value;
-        const preserveImages = document.getElementById('preserveImages').checked;
-        const preserveFormatting = document.getElementById('preserveFormatting').checked;
-        const useOCR = document.getElementById('useOCR').checked;
 
         const formData = new FormData();
         formData.append('file', pdfFile);
         formData.append('format', format);
-        formData.append('preserve_images', preserveImages);
-        formData.append('preserve_formatting', preserveFormatting);
-        formData.append('use_ocr', useOCR);
+
 
         showProgress('convertProgress');
 
         try {
-            // 使用统一的转换端点，会自动检测扫描版PDF并提供分析
+            // 使用OCR增强的转换端点，自动处理扫描版PDF
             const endpoint = '/api/v1/pdf/convert';
             const response = await fetch(endpoint, {
                 method: 'POST',
@@ -113,7 +95,7 @@
                         extension = 'md';
                         break;
                     case 'epub':
-                        extension = 'html'; // 我们当前的实现输出HTML
+                        extension = 'epub'; 
                         break;
                     default:
                         extension = format;

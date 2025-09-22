@@ -18,13 +18,10 @@ __all__ = [
 
 # Conditionally import operations that require PIL/external dependencies
 try:
-    from .watermark import WatermarkOperation
+    from .watermark import WatermarkOperation  # noqa: F401
+
     __all__.append("WatermarkOperation")
 except ImportError:
     pass
 
-try:
-    from .conversion_ocr import ConversionOperationOCR
-    __all__.append("ConversionOperationOCR")
-except ImportError:
-    pass
+# ConversionOperation already imported above, no need to re-import

@@ -1,85 +1,56 @@
 """
-PDF conversion service handler
+Enhanced conversion service handler with OCR support
 """
 
 import logging
-from pathlib import Path
-from typing import List, Optional
+from typing import List
 
-from fastapi import UploadFile
+from fastapi import HTTPException, UploadFile
 
-from ....common.models import ConversionFormat, ConversionOptions, OperationResult
+from ....common.exceptions import PDFToolError
+from ....common.models import ConversionOptions, OperationResult
 from ....domains.document.operations.conversion import ConversionOperation
 from ..interfaces import BaseServiceHandler
+from ..schemas.requests import ConversionRequest
 
 logger = logging.getLogger(__name__)
 
 
 class ConversionServiceHandler(BaseServiceHandler):
-    """PDF conversion service handler"""
-
-    def __init__(self, temp_dir: Optional[Path] = None):
-        super().__init__()
-        self.conversion_operation = ConversionOperation(temp_dir)
+    """Enhanced service handler for PDF conversion with OCR support"""
 
     @property
     def service_name(self) -> str:
-        """Get service name for registration"""
         return "conversion"
 
+    def __init__(self):
+        super().__init__()
+        self.operation = ConversionOperation()
+
     async def handle(
-        self,
-        files: List[UploadFile],
-        request: Optional[dict] = None,
-        *args,
-        **kwargs
+        self, files: List[UploadFile], request: ConversionRequest, *args, **kwargs
     ) -> OperationResult:
         """Handle conversion request via standard interface"""
         if not files:
             raise ValueError("No files provided for conversion")
 
         file = files[0]  # Take first file
-        format_type = request.get('format', 'txt') if request else 'txt'
-        preserve_images = request.get('preserve_images', True) if request else True
-        preserve_formatting = request.get('preserve_formatting', True) if request else True
 
-        return await self.handle_conversion(
-            file=file,
-            format=format_type,
-            preserve_images=preserve_images,
-            preserve_formatting=preserve_formatting
-        )
-
-    async def handle_conversion(
-        self,
-        file: UploadFile,
-        format: str,
-        preserve_images: bool = True,
-        preserve_formatting: bool = True,
-    ) -> OperationResult:
-        """Handle PDF conversion request"""
         try:
-            # Validate format
-            try:
-                conversion_format = ConversionFormat(format.lower())
-            except ValueError:
-                raise ValueError(f"Unsupported conversion format: {format}")
+            temp_input = await self.save_upload_file_tracked(file)
 
-            # Save uploaded file
-            input_file = await self.save_upload_file_tracked(file)
-
-            # Create conversion options
             options = ConversionOptions(
-                format=conversion_format,
-                preserve_images=preserve_images,
-                preserve_formatting=preserve_formatting,
+                format=request.format,
             )
 
-            # Execute conversion
-            result = self.conversion_operation.execute(input_file, options)
+            result = self.operation.execute(temp_input, options)
+
+            logger.info(f"格式转换成功: {file.filename}")
 
             return result
-
+        except PDFToolError as e:
+            logger.error(f"格式转换失败: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
-            logger.error(f"Conversion failed: {str(e)}")
-            raise
+            logger.error(f"格式转换异常: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"密码保护时出错: {str(e)}")

@@ -15,6 +15,8 @@ from ..dependencies import (
     validate_file_extension,
 )
 from ..schemas.requests import (
+    ConversionRequest,
+    ConversionTypeEnum,
     PageSelectionModeEnum,
     PasswordProtectionRequest,
     PDFMergeRequest,
@@ -256,88 +258,35 @@ async def protect_pdf_with_password(
 @router.post(
     "/convert",
     response_class=FileResponse,
-    summary="PDF格式转换",
-    description="将PDF文件转换为其他格式（epub、txt、markdown）",
+    summary="PDF格式转换(OCR增强)",
+    description="将PDF文件转换为其他格式（epub、txt、markdown），自动支持OCR处理扫描版PDF",
 )
 async def convert_pdf(
     file: UploadFile = File(..., description="要转换的PDF文件"),
-    format: str = Form(..., description="转换格式: epub/txt/markdown"),
-    preserve_images: bool = Form(True, description="是否保留图片信息"),
-    preserve_formatting: bool = Form(True, description="是否保留格式"),
+    format: ConversionTypeEnum = Form(
+        ConversionTypeEnum.MARKDOWN, description="转换格式: epub/txt/markdown"
+    ),
     service_registry: ServiceRegistry = Depends(get_service_registry),
 ):
-    """PDF格式转换 - 使用新架构"""
     # 验证文件
     validate_file_extension(file.filename)
 
-    # 验证转换格式
-    supported_formats = ['epub', 'txt', 'markdown']
-    if format.lower() not in supported_formats:
-        raise HTTPException(
-            status_code=400,
-            detail=f"不支持的格式: {format}，支持的格式: {', '.join(supported_formats)}"
+    # 创建请求对象
+    try:
+        request = ConversionRequest(
+            format=format,
         )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"参数验证失败: {str(e)}")
 
-    # 获取转换服务处理器
+    # 获取OCR转换服务处理器（
     conversion_handler = service_registry.get_handler("conversion")
 
-    # 执行转换
-    result = await conversion_handler.handle_conversion(
-        file=file,
-        format=format,
-        preserve_images=preserve_images,
-        preserve_formatting=preserve_formatting,
-    )
+    # 执行OCR增强转换
+    result = await conversion_handler.handle([file], request)
 
     # 返回下载响应
     filename = f"converted_{Path(file.filename or 'document').stem}"
-    return conversion_handler.create_download_response(result, filename)
-
-
-@router.post(
-    "/convert-ocr",
-    response_class=FileResponse,
-    summary="PDF格式转换(OCR增强)",
-    description="将PDF文件转换为其他格式，支持OCR处理扫描版PDF",
-)
-async def convert_pdf_ocr(
-    file: UploadFile = File(..., description="要转换的PDF文件"),
-    format: str = Form(..., description="转换格式: epub/txt/markdown"),
-    preserve_images: bool = Form(True, description="是否保留图片信息"),
-    preserve_formatting: bool = Form(True, description="是否保留格式"),
-    use_ocr: bool = Form(True, description="是否启用OCR处理扫描版PDF"),
-    service_registry: ServiceRegistry = Depends(get_service_registry),
-):
-    """PDF格式转换(OCR增强) - 支持扫描版PDF"""
-    # 验证文件
-    validate_file_extension(file.filename)
-
-    # 验证转换格式
-    supported_formats = ['epub', 'txt', 'markdown']
-    if format.lower() not in supported_formats:
-        raise HTTPException(
-            status_code=400,
-            detail=f"不支持的转换格式: {format}. 支持的格式: {supported_formats}"
-        )
-
-    # 获取OCR转换服务处理器
-    try:
-        conversion_handler = service_registry.get_handler("conversion_ocr")
-    except KeyError:
-        # Fallback to regular conversion if OCR not available
-        conversion_handler = service_registry.get_handler("conversion")
-
-    # 执行转换
-    result = await conversion_handler.handle_conversion(
-        file=file,
-        format=format,
-        preserve_images=preserve_images,
-        preserve_formatting=preserve_formatting,
-        use_ocr=use_ocr if hasattr(conversion_handler, 'ocr_enabled') else False,
-    )
-
-    # 返回下载响应
-    filename = f"converted_ocr_{Path(file.filename or 'document').stem}"
     return conversion_handler.create_download_response(result, filename)
 
 

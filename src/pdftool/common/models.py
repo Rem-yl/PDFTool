@@ -154,9 +154,6 @@ class ConversionOptions:
 
     format: ConversionFormat
     output_file: Optional[Path] = None
-    preserve_images: bool = True
-    preserve_formatting: bool = True
-    use_ocr: bool = True  # Enable OCR for scanned PDFs
 
 
 @dataclass

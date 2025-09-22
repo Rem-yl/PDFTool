@@ -7,6 +7,9 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, validator
 
+# 直接导入并使用核心模型中的枚举，避免重复定义
+from ....common.models import ConversionFormat
+
 
 class PageSelectionModeEnum(str, Enum):
     """PDF页面选择模式枚举"""
@@ -36,6 +39,10 @@ class WatermarkPositionEnum(int, Enum):
     BOTTOM_LEFT = 7
     BOTTOM_CENTER = 8
     BOTTOM_RIGHT = 9
+
+
+# 为API使用创建别名，保持向后兼容
+ConversionTypeEnum = ConversionFormat
 
 
 class PDFMergeRequest(BaseModel):
@@ -149,6 +156,12 @@ class PasswordProtectionRequest(BaseModel):
         if v is not None and len(v.strip()) < 4:
             raise ValueError("所有者密码长度至少为4位")
         return v.strip() if v else None
+
+
+class ConversionRequest(BaseModel):
+    """PDF转换请求模型"""
+
+    format: ConversionTypeEnum = Field(ConversionTypeEnum.MARKDOWN, description="转换格式")
 
 
 class UploadConfig(BaseModel):
