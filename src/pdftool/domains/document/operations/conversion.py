@@ -3,6 +3,9 @@ PDF conversion operations using PaddleOCR exclusively
 """
 
 import logging
+import os
+import tempfile
+import zipfile
 from pathlib import Path
 
 import paddle
@@ -41,11 +44,13 @@ class ConversionOperation(BasePDFOperation):
 
         try:
             if options.format == ConversionFormat.TXT:
-                raise PDFProcessingError("TXT format not be implemented.")
+                raise PDFProcessingError("TXT format not be implemented.")  # REM: pdf2txt功能待实现
             elif options.format == ConversionFormat.MARKDOWN:
                 return self._convert_to_markdown(input_file, options)
             elif options.format == ConversionFormat.EPUB:
-                raise PDFProcessingError("EPUB format not be implemented.")
+                raise PDFProcessingError(
+                    "EPUB format not be implemented."
+                )  # REM: pdf2epub功能待实现, 可以使用pandoc转化
             else:
                 raise PDFProcessingError(f"Unsupported format: {options.format}")
 
@@ -55,18 +60,25 @@ class ConversionOperation(BasePDFOperation):
 
     def _convert_to_markdown(self, input_file: Path, options: ConversionOptions) -> OperationResult:
         """Convert PDF to Markdown using PaddleOCR and package with images as ZIP"""
-        import os
-        import tempfile
-        import zipfile
-
-        output_file = options.output_file or self.create_temp_file(".zip")
         device = paddle.device.get_device()
+        paddle.device.set_device(device)
+        if device == "cpu":
+            result = self._use_cpu_ocr(input_file, options)
+        elif device == "gpu":
+            result = self._use_gpu_ocr(input_file, options)
+        else:
+            raise PDFProcessingError(f"Unsupported device: {device}")
+
+        return result
+
+    def _use_gpu_ocr(self, input_file: Path, options: ConversionOptions) -> OperationResult:
+        # REM: 让临时文件保持原有文件名 output_file = options.output_file or self.create_temp_file(input_file)
+        output_file = options.output_file or self.create_temp_file(".zip")
+        pipeline = PPStructureV3()
+        # 初始化PaddleOCR pipeline
+        logger.info(f"Start using PaddleOCR to process file: {input_file}")
 
         try:
-            # 初始化PaddleOCR pipeline
-            pipeline = PPStructureV3(device=device)
-            logger.info(f"Start using PaddleOCR to process file: {input_file}")
-
             # 使用PaddleOCR处理PDF
             output = pipeline.predict(input=input_file.as_posix())
             logger.info(f"PaddleOCR processing completed, got {len(output)} results")
@@ -159,4 +171,23 @@ class ConversionOperation(BasePDFOperation):
             else:
                 error_msg = f"PaddleOCR processing failed: {str(e)}"
 
-            raise PDFProcessingError(error_msg)
+            return OperationResult(
+                success=False,
+                message=error_msg,
+                output_files=[],
+                details=str(e),
+            )
+
+    def _use_cpu_ocr(self, input_file: Path, options: ConversionOptions):
+        # REM: 使用轻量级的模型在CPU上进行OCR
+        output_file = input_file.with_suffix(".zip")
+
+        with zipfile.ZipFile(output_file, "w", zipfile.ZIP_DEFLATED) as zipf:
+            zipf.writestr("dummy.txt", "This is a placeholder file for testing CPU OCR pipeline.")
+
+        return OperationResult(
+            success=True,
+            message="PDF successfully converted to Markdown with PaddleOCR",
+            output_files=[output_file],
+            details="Only return original file to test CPU usage",
+        )

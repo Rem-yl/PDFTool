@@ -11,6 +11,7 @@ from fastapi import HTTPException, UploadFile
 
 from ...common.models import OperationResult
 from ...common.utils.logging import get_logger
+from ...common.utils.tools import create_archive
 
 logger = get_logger("api.interfaces")
 
@@ -102,24 +103,6 @@ class BaseServiceHandler(IServiceHandler):
             except Exception as e:
                 logger.warning(f"清理文件失败 {file_path}: {str(e)}")
 
-    def create_archive(self, file_paths, output_zip="output.zip"):
-        """
-        将多个文件打包成一个 zip 压缩包
-
-        Args:
-            file_paths (list[str]): 要打包的文件路径列表
-            output_zip (str): 输出的 zip 文件路径
-        """
-        import os
-        import zipfile
-
-        with zipfile.ZipFile(output_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
-            for file in file_paths:
-                arcname = os.path.basename(file)  # 只保留文件名，不带路径
-                zipf.write(file, arcname)
-
-        return output_zip
-
     def create_download_response(self, result: OperationResult, filename: str):
         """Create file download response with comprehensive cleanup"""
         from fastapi.responses import FileResponse
@@ -127,8 +110,6 @@ class BaseServiceHandler(IServiceHandler):
 
         if not result.success or not result.output_files:
             raise HTTPException(status_code=500, detail="没有可下载的文件")
-
-        output_file = result.output_files[0]
 
         # 收集所有需要清理的文件：输入文件 + 输出文件
         all_cleanup_files = []
@@ -139,7 +120,7 @@ class BaseServiceHandler(IServiceHandler):
 
         # Choose download type based on number of files
         if len(result.output_files) > 1:
-            zip_file = self.create_archive(result.output_files)
+            zip_file = create_archive(result.output_files)
             # 添加输出文件和ZIP文件到清理列表
             all_cleanup_files.extend(result.output_files)
             all_cleanup_files.append(zip_file)
@@ -150,6 +131,8 @@ class BaseServiceHandler(IServiceHandler):
                 media_type="application/zip",
                 background=BackgroundTask(self._cleanup_files, all_cleanup_files),
             )
+        else:
+            output_file = result.output_files[0]
 
         # 添加输出文件到清理列表
         all_cleanup_files.extend(result.output_files)

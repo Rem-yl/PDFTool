@@ -85,35 +85,27 @@
             if (response.ok) {
                 const blob = await response.blob();
 
-                // 确定文件扩展名
-                let extension;
-                switch(format) {
-                    case 'txt':
-                        extension = 'txt';
-                        break;
-                    case 'markdown':
-                        extension = 'md';
-                        break;
-                    case 'epub':
-                        extension = 'epub'; 
-                        break;
-                    default:
-                        extension = format;
+                // 从响应头获取文件名
+                let filename = "";
+                const disposition = response.headers.get("Content-Disposition");
+                if (disposition && disposition.includes("filename=")) {
+                    const match = disposition.match(/filename="?([^"]+)"?/);
+                    if (match && match[1]) {
+                        filename = decodeURIComponent(match[1]); // 如果后端有中文名建议 decode 一下
+                    }
                 }
 
-                const filename = `converted_${pdfFile.name.replace('.pdf', '')}.${extension}`;
+                // 兜底逻辑（如果后端没传 filename）
+                if (!filename) {
+                    filename = "converted_file";
+                }
+
                 downloadFile(blob, filename);
 
-                const formatNames = {
-                    'txt': '纯文本',
-                    'markdown': 'Markdown',
-                    'epub': 'EPUB格式'
-                };
-
-                showResult('convertResult', `✅ 转换成功！已转换为${formatNames[format]}格式`, true);
+                showResult("convertResult", `✅ 转换成功！已保存为 ${filename}`, true);
             } else {
                 const error = await response.json();
-                showResult('convertResult', `❌ 转换失败: ${error.detail || error.message}`, false);
+                showResult("convertResult", `❌ 转换失败: ${error.detail || error.message}`, false);
             }
         } catch (error) {
             hideProgress('convertProgress');

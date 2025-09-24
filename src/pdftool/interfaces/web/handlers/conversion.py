@@ -36,6 +36,7 @@ class ConversionServiceHandler(BaseServiceHandler):
 
         file = files[0]  # Take first file
 
+        # REM: 去除try-catch, 根据返回的result中的success字段来返回response
         try:
             temp_input = await self.save_upload_file_tracked(file)
 

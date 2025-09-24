@@ -64,6 +64,7 @@
             
             if (response.ok) {
                 const blob = await response.blob();
+                //REM: 下载文件名从response中获取, 获取不到则使用默认文件名
                 downloadFile(blob, 'merged.pdf');
                 showResult('mergeResult', `✅ PDF合并成功！已合并 ${files.length} 个文件`, true);
             } else {
