@@ -29,16 +29,6 @@ def get_settings() -> object:
     return settings
 
 
-def validate_file_size(file_size: int) -> bool:
-    """验证文件大小"""
-    if file_size > settings.max_file_size:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"文件大小超过限制 {settings.max_file_size / 1024 / 1024:.1f}MB",
-        )
-    return True
-
-
 def validate_file_extension(filename: str | None) -> bool:
     """验证文件扩展名"""
     if not filename:
