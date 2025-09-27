@@ -64,7 +64,7 @@ class ConversionOperation(BasePDFOperation):
         paddle.device.set_device(device)
         if device == "cpu":
             result = self._use_cpu_ocr(input_file, options)
-        elif device == "gpu":
+        elif device.startswith("gpu"):
             result = self._use_gpu_ocr(input_file, options)
         else:
             raise PDFProcessingError(f"Unsupported device: {device}")
