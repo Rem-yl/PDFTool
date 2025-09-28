@@ -4,25 +4,19 @@ PDF conversion operations using PaddleOCR exclusively
 
 import logging
 import os
+import subprocess
 import tempfile
 import zipfile
 from pathlib import Path
 
 import paddle
+from paddleocr import PPStructureV3
 
 from ....common.exceptions import PDFProcessingError
 from ....common.interfaces import BasePDFOperation
 from ....common.models import ConversionFormat, ConversionOptions, OperationResult
 
 logger = logging.getLogger(__name__)
-
-# Try to import PaddleOCR dependencies, fall back gracefully if not available
-try:
-    from paddleocr import PPStructureV3
-
-    logger.info("PaddleOCR dependencies loaded successfully")
-except (ImportError, OSError) as e:
-    raise ValueError(f"PaddleOCR dependencies not available: {e}")
 
 
 class ConversionOperation(BasePDFOperation):
@@ -43,13 +37,11 @@ class ConversionOperation(BasePDFOperation):
         self.validate_input(input_file, options)
 
         if options.format == ConversionFormat.TXT:
-            # REM: pdf2txt功能待实现
-            return OperationResult(success=False, message="TXT format not be implemented.")
-        elif options.format == ConversionFormat.MARKDOWN:
+            return self._convert_to_txt(input_file, options)
+        if options.format == ConversionFormat.MARKDOWN:
             return self._convert_to_markdown(input_file, options)
-        elif options.format == ConversionFormat.EPUB:
-            # REM: pdf2epub功能待实现, 可以使用pandoc转化
-            return OperationResult(success=False, message="EPUB format not be implemented.")
+        if options.format == ConversionFormat.EPUB:
+            return self._convert_to_epub(input_file, options)
         else:
             return OperationResult(success=False, message=f"Unsupported format: {options.format}")
 
@@ -70,10 +62,8 @@ class ConversionOperation(BasePDFOperation):
         return result
 
     def _use_gpu_ocr(self, input_file: Path, options: ConversionOptions) -> OperationResult:
-        # REM: 让临时文件保持原有文件名 output_file = options.output_file or self.create_temp_file(input_file)
         output_file = options.output_file or self.create_temp_file(".zip")
         pipeline = PPStructureV3()
-        # 初始化PaddleOCR pipeline
         logger.info(f"Start using PaddleOCR to process file: {input_file}")
 
         try:
@@ -133,7 +123,7 @@ class ConversionOperation(BasePDFOperation):
                     zipf.write(md_file_path, md_file_name)
 
                     # 添加所有图像文件
-                    for root, dirs, files in os.walk(temp_path):
+                    for root, _, files in os.walk(temp_path):
                         for file in files:
                             file_path = Path(root) / file
                             if file_path != md_file_path:
@@ -176,16 +166,179 @@ class ConversionOperation(BasePDFOperation):
                 details=str(e),
             )
 
-    def _use_cpu_ocr(self, input_file: Path, options: ConversionOptions):
-        # REM: 使用轻量级的模型在CPU上进行OCR
+    def _use_cpu_ocr(self, input_file: Path, _: ConversionOptions):
+        """CPU模式简单返回占位结果"""
         output_file = input_file.with_suffix(".zip")
 
         with zipfile.ZipFile(output_file, "w", zipfile.ZIP_DEFLATED) as zipf:
-            zipf.writestr("dummy.txt", "This is a placeholder file for testing CPU OCR pipeline.")
+            zipf.writestr("dummy.md", f"# {input_file.stem}\n\nCPU OCR placeholder content")
 
         return OperationResult(
             success=True,
-            message="PDF successfully converted to Markdown with PaddleOCR",
+            message="PDF converted using CPU mode (placeholder)",
             output_files=[output_file],
-            details="Only return original file to test CPU usage",
+            details="CPU mode placeholder implementation",
         )
+
+    def _check_pandoc_available(self) -> bool:
+        """Check if pandoc is available on the system"""
+        try:
+            result = subprocess.run(
+                ["pandoc", "--version"], capture_output=True, text=True, timeout=5, check=False
+            )
+            return result.returncode == 0
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+            return False
+
+    def _convert_to_txt(self, input_file: Path, options: ConversionOptions) -> OperationResult:
+        """Convert PDF to TXT by first converting to markdown, then using pandoc"""
+        if not self._check_pandoc_available():
+            return OperationResult(
+                success=False,
+                message="TXT conversion requires pandoc to be installed",
+                details="Please install pandoc: https://pandoc.org/installing.html",
+            )
+
+        try:
+            # First convert to markdown
+            md_options = ConversionOptions(format=ConversionFormat.MARKDOWN)
+            md_result = self._convert_to_markdown(input_file, md_options)
+
+            if not md_result.success:
+                return md_result
+
+            # Extract markdown file from ZIP
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+
+                # Unzip markdown file
+                with zipfile.ZipFile(md_result.output_files[0], "r") as zip_ref:
+                    zip_ref.extractall(temp_path)
+
+                # Find markdown file
+                md_file = next(temp_path.glob("*.md"), None)
+                if not md_file:
+                    raise PDFProcessingError("No markdown file found in conversion output")
+
+                # Convert markdown to TXT using pandoc
+                final_output_file = options.output_file or self.create_temp_file(".txt")
+                # Create output file in temp directory to avoid path issues
+                temp_output_file = temp_path / f"{input_file.stem}.txt"
+
+                pandoc_cmd = [
+                    "pandoc",
+                    str(md_file),
+                    "-o",
+                    str(temp_output_file),
+                    "--from=markdown",
+                    "--to=plain",
+                    "--wrap=none",
+                ]
+
+                result = subprocess.run(
+                    pandoc_cmd, capture_output=True, text=True, timeout=30, check=False
+                )
+
+                if result.returncode != 0:
+                    raise PDFProcessingError(f"Pandoc conversion failed: {result.stderr}")
+
+                # Copy temp file to final location
+                import shutil
+
+                final_output_file.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(temp_output_file, final_output_file)
+
+                logger.info(f"TXT file created: {final_output_file}")
+
+                return OperationResult(
+                    success=True,
+                    message="PDF successfully converted to TXT",
+                    output_files=[final_output_file],
+                    details="Converted via markdown using pandoc",
+                )
+
+        except Exception as e:
+            logger.error(f"TXT conversion failed: {e}")
+            return OperationResult(
+                success=False,
+                message=f"TXT conversion failed: {str(e)}",
+                details=str(e),
+            )
+
+    def _convert_to_epub(self, input_file: Path, options: ConversionOptions) -> OperationResult:
+        """Convert PDF to EPUB by first converting to markdown, then using pandoc"""
+        if not self._check_pandoc_available():
+            return OperationResult(
+                success=False,
+                message="EPUB conversion requires pandoc to be installed",
+                details="Please install pandoc: https://pandoc.org/installing.html",
+            )
+
+        try:
+            # First convert to markdown
+            md_options = ConversionOptions(format=ConversionFormat.MARKDOWN)
+            md_result = self._convert_to_markdown(input_file, md_options)
+
+            if not md_result.success:
+                return md_result
+
+            # Extract and process markdown files
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+
+                # Unzip markdown and images
+                with zipfile.ZipFile(md_result.output_files[0], "r") as zip_ref:
+                    zip_ref.extractall(temp_path)
+
+                # Find markdown file
+                md_file = next(temp_path.glob("*.md"), None)
+                if not md_file:
+                    raise PDFProcessingError("No markdown file found in conversion output")
+
+                # Convert markdown to EPUB using pandoc (exactly like TXT)
+                final_output_file = options.output_file or self.create_temp_file(".epub")
+                # Create output file in temp directory to avoid path issues
+                temp_output_file = temp_path / f"{input_file.stem}.epub"
+
+                title = input_file.stem.replace("_", " ").title()
+                pandoc_cmd = [
+                    "pandoc",
+                    str(md_file),
+                    "-o",
+                    str(temp_output_file),
+                    "--from=markdown",
+                    "--to=epub",
+                    f"--metadata=title={title}",
+                    "--metadata=author=PaddleOCR",
+                    "--standalone",
+                ]
+
+                result = subprocess.run(
+                    pandoc_cmd, capture_output=True, text=True, timeout=30, check=False
+                )
+
+                if result.returncode != 0:
+                    raise PDFProcessingError(f"Pandoc conversion failed: {result.stderr}")
+
+                # Copy temp file to final location
+                import shutil
+
+                final_output_file.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(temp_output_file, final_output_file)
+
+                logger.info(f"EPUB file created: {final_output_file}")
+
+                return OperationResult(
+                    success=True,
+                    message="PDF successfully converted to EPUB",
+                    output_files=[final_output_file],
+                    details="Converted via markdown using pandoc",
+                )
+
+        except Exception as e:
+            logger.error(f"EPUB conversion failed: {e}")
+            return OperationResult(
+                success=False,
+                message=f"EPUB conversion failed: {str(e)}",
+                details=str(e),
+            )

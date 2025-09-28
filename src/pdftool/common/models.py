@@ -2,7 +2,7 @@
 Data models and types for PDFTool operations
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -162,5 +162,5 @@ class OperationResult:
 
     success: bool
     message: str
-    output_files: List[Path] = []
+    output_files: List[Path] = field(default_factory=list)
     details: Optional[str] = None
