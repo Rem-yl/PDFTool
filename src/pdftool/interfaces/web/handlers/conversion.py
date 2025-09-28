@@ -7,7 +7,6 @@ from typing import List
 
 from fastapi import HTTPException, UploadFile
 
-from ....common.exceptions import PDFToolError
 from ....common.models import ConversionOptions, OperationResult
 from ....domains.document.operations.conversion import ConversionOperation
 from ..interfaces import BaseServiceHandler
@@ -35,23 +34,16 @@ class ConversionServiceHandler(BaseServiceHandler):
             raise ValueError("No files provided for conversion")
 
         file = files[0]  # Take first file
+        temp_input = await self.save_upload_file_tracked(file)
+        options = ConversionOptions(
+            format=request.format,
+        )
 
-        # REM: 去除try-catch, 根据返回的result中的success字段来返回response
-        try:
-            temp_input = await self.save_upload_file_tracked(file)
+        result = self.operation.execute(temp_input, options)
 
-            options = ConversionOptions(
-                format=request.format,
-            )
+        if not result.success:
+            raise HTTPException(status_code=400, detail=result.message)
 
-            result = self.operation.execute(temp_input, options)
+        logger.info(f"格式转换成功: {file.filename}")
 
-            logger.info(f"格式转换成功: {file.filename}")
-
-            return result
-        except PDFToolError as e:
-            logger.error(f"格式转换失败: {str(e)}")
-            raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
-            logger.error(f"格式转换异常: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"密码保护时出错: {str(e)}")
+        return result

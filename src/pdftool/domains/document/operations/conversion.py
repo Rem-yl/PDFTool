@@ -42,21 +42,16 @@ class ConversionOperation(BasePDFOperation):
         """Execute PDF conversion operation using PaddleOCR exclusively"""
         self.validate_input(input_file, options)
 
-        try:
-            if options.format == ConversionFormat.TXT:
-                raise PDFProcessingError("TXT format not be implemented.")  # REM: pdf2txt功能待实现
-            elif options.format == ConversionFormat.MARKDOWN:
-                return self._convert_to_markdown(input_file, options)
-            elif options.format == ConversionFormat.EPUB:
-                raise PDFProcessingError(
-                    "EPUB format not be implemented."
-                )  # REM: pdf2epub功能待实现, 可以使用pandoc转化
-            else:
-                raise PDFProcessingError(f"Unsupported format: {options.format}")
-
-        except Exception as e:
-            logger.error(f"PaddleOCR conversion failed: {str(e)}")
-            raise PDFProcessingError(f"Conversion failed: {str(e)}")
+        if options.format == ConversionFormat.TXT:
+            # REM: pdf2txt功能待实现
+            return OperationResult(success=False, message="TXT format not be implemented.")
+        elif options.format == ConversionFormat.MARKDOWN:
+            return self._convert_to_markdown(input_file, options)
+        elif options.format == ConversionFormat.EPUB:
+            # REM: pdf2epub功能待实现, 可以使用pandoc转化
+            return OperationResult(success=False, message="EPUB format not be implemented.")
+        else:
+            return OperationResult(success=False, message=f"Unsupported format: {options.format}")
 
     def _convert_to_markdown(self, input_file: Path, options: ConversionOptions) -> OperationResult:
         """Convert PDF to Markdown using PaddleOCR and package with images as ZIP"""
@@ -67,7 +62,10 @@ class ConversionOperation(BasePDFOperation):
         elif device.startswith("gpu"):
             result = self._use_gpu_ocr(input_file, options)
         else:
-            raise PDFProcessingError(f"Unsupported device: {device}")
+            logger.error(f"Unsupported device: {device}")
+            result = OperationResult(
+                success=False, message=f"convert to markdown failed, unsupported device: {device}"
+            )
 
         return result
 

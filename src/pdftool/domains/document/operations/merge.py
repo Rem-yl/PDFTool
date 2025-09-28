@@ -9,7 +9,7 @@ from uuid import uuid4
 
 import PyPDF2
 
-from ....common.exceptions import PDFProcessingError, PDFValidationError
+from ....common.exceptions import PDFValidationError
 from ....common.interfaces import BasePDFOperation
 from ....common.models import MergeOptions, OperationResult
 
@@ -35,7 +35,9 @@ class MergeOperation(BasePDFOperation):
         """Execute PDF merge operation"""
         self.validate_input(input_files, options)
 
+        # REM: 让临时文件保持原有文件名 output_file = options.output_file or self.create_temp_file(input_file)
         output_file = options.output_file or self.temp_dir / f"merged_{uuid4().hex}.pdf"
+        logger.info(f"Attempting to merge {len(input_files)} PDFs into {output_file}")
 
         try:
             merger = PyPDF2.PdfMerger()
@@ -56,4 +58,7 @@ class MergeOperation(BasePDFOperation):
             )
 
         except Exception as e:
-            raise PDFProcessingError(f"Failed to merge PDFs: {str(e)}")
+            return OperationResult(
+                success=False,
+                message=f"Failed to merge PDFs: {str(e)}",
+            )

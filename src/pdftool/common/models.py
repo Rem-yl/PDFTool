@@ -162,5 +162,5 @@ class OperationResult:
 
     success: bool
     message: str
-    output_files: List[Path]
+    output_files: List[Path] = []
     details: Optional[str] = None

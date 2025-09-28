@@ -57,13 +57,13 @@ class BaseServiceHandler(IServiceHandler):
         # 存储当前请求的所有临时文件，用于统一清理
         self._temp_files_registry = []
 
-    async def save_upload_file(self, upload_file: UploadFile, validate_pdf: bool = True) -> Path:
+    async def save_upload_file(self, upload_file: UploadFile) -> Path:
         """Save uploaded file to temporary directory"""
         if not upload_file.filename:
             raise HTTPException(status_code=400, detail="文件名不能为空")
         try:
             # Validate file type if requested
-            if validate_pdf and not upload_file.filename.endswith(".pdf"):
+            if not upload_file.filename.endswith(".pdf"):
                 raise HTTPException(status_code=400, detail="文件必须是PDF格式")
 
             # Create temporary file
@@ -80,11 +80,9 @@ class BaseServiceHandler(IServiceHandler):
             logger.error(f"保存上传文件失败: {str(e)}")
             raise HTTPException(status_code=500, detail=f"保存文件失败: {str(e)}")
 
-    async def save_upload_file_tracked(
-        self, upload_file: UploadFile, validate_pdf: bool = True
-    ) -> Path:
+    async def save_upload_file_tracked(self, upload_file: UploadFile) -> Path:
         """保存上传文件并跟踪以便统一清理"""
-        temp_path = await self.save_upload_file(upload_file, validate_pdf)
+        temp_path = await self.save_upload_file(upload_file)
         # 将临时文件添加到注册表中，但不立即清理
         if not hasattr(self, "_temp_files_registry"):
             self._temp_files_registry = []
