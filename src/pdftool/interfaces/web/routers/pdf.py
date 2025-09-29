@@ -115,9 +115,7 @@ async def select_pages_v2(
         try:
             page_list = parse_page_list(pages)
         except ValueError:
-            raise HTTPException(
-                status_code=400, detail="页面格式错误，请使用 '1,3,5' 或 '1-5' 格式"
-            )
+            raise HTTPException(status_code=400, detail="页面格式错误，请使用 '1,3,5' 或 '1-5' 格式")
 
     # 创建请求对象
     request = PDFPageSelectionRequest(mode=mode, pages=page_list, filename_prefix=filename_prefix)

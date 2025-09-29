@@ -166,18 +166,124 @@ class ConversionOperation(BasePDFOperation):
                 details=str(e),
             )
 
-    def _use_cpu_ocr(self, input_file: Path, _: ConversionOptions):
-        """CPU模式简单返回占位结果"""
-        output_file = input_file.with_suffix(".zip")
+    def _use_cpu_ocr(self, input_file: Path, options: ConversionOptions):
+        """CPU模式返回包含测试图像的结果，用于验证EPUB图像保留功能"""
+        import tempfile
+        from PIL import Image, ImageDraw, ImageFont
+        import os
 
-        with zipfile.ZipFile(output_file, "w", zipfile.ZIP_DEFLATED) as zipf:
-            zipf.writestr("dummy.md", f"# {input_file.stem}\n\nCPU OCR placeholder content")
+        output_file = options.output_file or input_file.with_suffix(".zip")
+
+        # 创建临时目录来存放markdown和图像
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # 创建测试图像
+            images_dir = temp_path / "images"
+            images_dir.mkdir(exist_ok=True)
+
+            # 创建第一个测试图像
+            img1 = Image.new('RGB', (300, 200), color='lightblue')
+            draw1 = ImageDraw.Draw(img1)
+            try:
+                # 尝试使用系统字体
+                font = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", 24)
+            except:
+                # 回退到默认字体
+                font = ImageFont.load_default()
+
+            draw1.text((20, 50), "测试图像 1", fill='darkblue', font=font)
+            draw1.text((20, 100), "Test Image 1", fill='darkblue', font=font)
+            img1_path = images_dir / "test_image_1.png"
+            img1.save(img1_path)
+
+            # 创建第二个测试图像
+            img2 = Image.new('RGB', (300, 200), color='lightgreen')
+            draw2 = ImageDraw.Draw(img2)
+            draw2.text((20, 50), "测试图像 2", fill='darkgreen', font=font)
+            draw2.text((20, 100), "Test Image 2", fill='darkgreen', font=font)
+            img2_path = images_dir / "test_image_2.png"
+            img2.save(img2_path)
+
+            # 创建第三个图像（图表样式）
+            img3 = Image.new('RGB', (350, 250), color='white')
+            draw3 = ImageDraw.Draw(img3)
+            # 画一个简单的柱状图
+            draw3.rectangle([50, 50, 100, 150], fill='red')
+            draw3.rectangle([120, 80, 170, 150], fill='blue')
+            draw3.rectangle([190, 30, 240, 150], fill='green')
+            draw3.text((20, 170), "样本图表", fill='black', font=font)
+            draw3.text((20, 200), "Sample Chart", fill='black', font=font)
+            img3_path = images_dir / "sample_chart.png"
+            img3.save(img3_path)
+
+            # 创建markdown内容，包含图像引用
+            markdown_content = f"""# {input_file.stem} - 测试文档
+
+*本文档由PDFTool CPU模式生成，包含测试图像用于验证EPUB转换功能*
+
+## 第一页内容
+
+这是第一页的文本内容，包含一个测试图像：
+
+![测试图像1](images/test_image_1.png)
+
+图像说明：这是一个蓝色背景的测试图像，用于验证EPUB转换是否能正确保留图像。
+
+## 第二页内容
+
+这里是第二页的内容，展示另一个图像：
+
+![测试图像2](images/test_image_2.png)
+
+这个绿色的图像用来测试多图像的处理能力。
+
+## 数据图表页面
+
+以下是一个示例图表：
+
+![样本图表](images/sample_chart.png)
+
+这个图表展示了三个不同颜色的柱状图，用于测试复杂图像的处理。
+
+## 转换说明
+
+- 本文档通过CPU模式生成
+- 包含3个测试图像
+- 用于验证PDF转EPUB时的图像保留功能
+- 如果EPUB中能看到上述图像，说明转换成功
+
+## 验证方法
+
+1. 将此PDF转换为EPUB格式
+2. 使用EPUB阅读器打开生成的文件
+3. 检查是否能看到所有3个图像
+4. 图像应该正确显示且与markdown中的引用对应
+
+**测试时间**: {input_file.stem}
+**图像数量**: 3张
+**转换模式**: CPU模式（测试）
+"""
+
+            # 保存markdown文件
+            md_file_path = temp_path / f"{input_file.stem}.md"
+            with open(md_file_path, "w", encoding="utf-8") as f:
+                f.write(markdown_content)
+
+            # 创建ZIP文件
+            with zipfile.ZipFile(output_file, "w", zipfile.ZIP_DEFLATED) as zipf:
+                # 添加markdown文件
+                zipf.write(md_file_path, f"{input_file.stem}.md")
+
+                # 添加所有图像文件
+                for img_file in images_dir.glob("*.png"):
+                    zipf.write(img_file, f"images/{img_file.name}")
 
         return OperationResult(
             success=True,
-            message="PDF converted using CPU mode (placeholder)",
+            message="PDF converted using CPU mode with test images",
             output_files=[output_file],
-            details="CPU mode placeholder implementation",
+            details="CPU mode with 3 test images for EPUB conversion verification",
         )
 
     def _check_pandoc_available(self) -> bool:
@@ -311,6 +417,7 @@ class ConversionOperation(BasePDFOperation):
                     f"--metadata=title={title}",
                     "--metadata=author=PaddleOCR",
                     "--standalone",
+                    f"--resource-path={temp_path}",  # 添加资源路径以包含图像
                 ]
 
                 result = subprocess.run(

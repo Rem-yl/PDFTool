@@ -109,9 +109,7 @@ class WatermarkRequest(BaseModel):
     image_scale: Optional[float] = Field(100, ge=10, le=300, description="图片缩放百分比")
 
     # 页面选择
-    page_selection: PageSelectionModeEnum = Field(
-        PageSelectionModeEnum.ALL, description="页面选择模式"
-    )
+    page_selection: PageSelectionModeEnum = Field(PageSelectionModeEnum.ALL, description="页面选择模式")
     specific_pages: Optional[str] = Field(None, description="指定页面(如: 1,3,5-8)")
 
     @validator("watermark_text")
@@ -131,9 +129,7 @@ class PasswordProtectionRequest(BaseModel):
     """密码保护请求模型"""
 
     user_password: str = Field(..., min_length=4, max_length=50, description="用户密码")
-    owner_password: Optional[str] = Field(
-        None, min_length=4, max_length=50, description="所有者密码"
-    )
+    owner_password: Optional[str] = Field(None, min_length=4, max_length=50, description="所有者密码")
 
     # 权限设置
     allow_printing: bool = Field(True, description="允许打印")

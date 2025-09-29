@@ -51,9 +51,7 @@ def parse_page_list(pages: str) -> list[int]:
             # 处理范围格式 "1-5"
             start, end = map(int, part.split("-"))
             if start > end:
-                raise HTTPException(
-                    status_code=400, detail=f"页面范围错误: {start}-{end}，起始页不能大于结束页"
-                )
+                raise HTTPException(status_code=400, detail=f"页面范围错误: {start}-{end}，起始页不能大于结束页")
             page_list.extend(range(start, end + 1))
         else:
             # 处理单个页面

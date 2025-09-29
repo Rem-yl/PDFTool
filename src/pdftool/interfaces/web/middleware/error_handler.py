@@ -90,9 +90,7 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
                 content=ErrorResponse(
                     message="服务器内部错误",
                     error_code="INTERNAL_SERVER_ERROR",
-                    details=(
-                        "请联系管理员" if not logger.isEnabledFor(10) else str(exc)
-                    ),  # DEBUG level
+                    details=("请联系管理员" if not logger.isEnabledFor(10) else str(exc)),  # DEBUG level
                 ).dict(),
             )
 
